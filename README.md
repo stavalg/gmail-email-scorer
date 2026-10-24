@@ -6,7 +6,16 @@ Open an email in Gmail, click **Analyze**, and get a **0–100 maliciousness sco
 verdict (**Safe / Suspicious / Malicious**) and the evidence behind it — every reason says
 *what* was found and *why* it matters, so the user learns to spot the trick themselves.
 
-![Result card for a phishing email](docs/screenshot-malicious.png)
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshot-card.png" width="300" alt="Result card for a phishing email: verdict, colored score bar and summary"></td>
+    <td align="center"><img src="docs/screenshot-reasons.png" width="300" alt="The same card with the reasons expanded, each with points and defanged evidence"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>What the user sees: verdict, score bar, one-line summary</sub></td>
+    <td align="center"><sub>One tap on <b>Why?</b>: every reason with its points and evidence</sub></td>
+  </tr>
+</table>
 
 | | |
 |---|---|
