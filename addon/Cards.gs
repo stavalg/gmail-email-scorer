@@ -48,15 +48,17 @@ function buildStartCard() {
 function buildResultCard(result) {
   const style = VERDICT_STYLES[result.verdict];
   const isSafe = result.verdict === 'safe';
-  const card = CardService.newCardBuilder().setHeader(CardService.newCardHeader()
-    .setTitle(style.icon + ' ' + style.label + ' · ' + result.score + ' / 100'));
 
-  const lines = [scoreBar(result.score),
-    '<font color="' + style.color + '"><b>' + escapeHtml(result.summary) + '</b></font>']
+  // The verdict and its scale sit together at the top (a card header can't hold colors).
+  const verdict = '<font color="' + style.color + '"><b>' + style.icon + ' ' + style.label
+    + ' · ' + result.score + ' / 100</b></font><br>' + scoreBar(result.score);
+  const summary = ['<b>' + escapeHtml(result.summary) + '</b>']
     .concat(result.notices.map((n) => '⚠️ ' + escapeHtml(n)))
     .concat(isSafe ? result.facts.map((f) => '✅ ' + escapeHtml(f)) : []);
-  card.addSection(textSection(null, lines));
 
+  const card = CardService.newCardBuilder().addSection(CardService.newCardSection()
+    .addWidget(CardService.newTextParagraph().setText(verdict))
+    .addWidget(CardService.newTextParagraph().setText(summary.join('<br>'))));
   if (result.findings.length) card.addSection(findingsSection(result.findings));
   card.addSection(detailsSection(result, !isSafe));
   card.addSection(CardService.newCardSection().addWidget(analyzeButton('Analyze again')));
@@ -64,21 +66,23 @@ function buildResultCard(result) {
 }
 
 /**
- * A colored 0–100 scale drawn with text (cards can't draw graphics): 20 cells of 5 points,
- * green below 30, orange 30–69, red from 70, with a divider at 30 and 70.
- * Cells up to the score are filled (■), the rest are outlined (□).
+ * A colored 0–100 gauge drawn with text (cards can't draw graphics): a line of 20 segments,
+ * green below 30, orange 30–69, red from 70, labelled 0 / 30 / 70 / 100, with a ● at the score.
  */
 function scoreBar(score) {
-  const filled = Math.round(score / 5);
-  let html = '';
+  const marker = Math.min(19, Math.floor(score / 5));
+  const label = (text) => '<font color="#9aa0a6">' + text + '</font>';
+  let html = label('0 ');
   for (let cell = 0; cell < 20; cell++) {
     const cellScore = cell * 5;
-    if (cellScore === 30 || cellScore === 70) html += '<font color="#9aa0a6"> │ </font>';
+    if (cellScore === 30 || cellScore === 70) html += label(' ' + cellScore + ' ');
     const color = cellScore >= 70 ? VERDICT_STYLES.malicious.color
       : cellScore >= 30 ? VERDICT_STYLES.suspicious.color : VERDICT_STYLES.safe.color;
-    html += '<font color="' + color + '">' + (cell < filled ? '■' : '□') + '</font>';
+    html += cell === marker
+      ? '<font color="#202124"><b>●</b></font>'
+      : '<font color="' + color + '">━</font>';
   }
-  return html;
+  return html + label(' 100');
 }
 
 function buildErrorCard(kind) {
