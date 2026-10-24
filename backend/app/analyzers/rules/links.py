@@ -7,7 +7,7 @@ from app.analyzers.rules.common import RuleOutput, make_finding, summarize
 from app.analyzers.rules.data import ABUSED_TLDS, BRANDS, SHORTENERS, Brand
 from app.context import EmailContext
 from app.parsing.body import Link
-from app.parsing.domains import defang, is_ip, registrable_domain, split_host, web_host
+from app.parsing.domains import browser_href, defang, is_ip, registrable_domain, split_host, web_host
 
 SCRIPT_SCHEMES = {"javascript", "data", "vbscript"}
 _LOOKS_LIKE_ADDRESS = re.compile(
@@ -37,7 +37,7 @@ def check(ctx: EmailContext) -> RuleOutput:
 
 
 def _inspect(link: Link, hits: dict[str, list[str]]) -> None:
-    scheme, separator, _ = link.href.strip().partition(":")
+    scheme, separator, _ = browser_href(link.href).partition(":")  # also catches java<TAB>script:
     if separator and scheme.lower() in SCRIPT_SCHEMES:
         hits["script_link"].append(f"{scheme.lower()}: link")
         return

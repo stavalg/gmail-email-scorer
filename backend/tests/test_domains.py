@@ -30,6 +30,15 @@ def test_web_host():
     assert web_host("http://[broken") == ""
 
 
+def test_web_host_matches_what_browsers_open():
+    # Browsers (WHATWG URL rules) treat "\" like "/" in http(s) links and ignore tabs/newlines;
+    # Python's urlsplit does not, so these used to resolve to the wrong host or to nothing.
+    assert web_host("https://evil.xyz\\@paypal.com/login") == "evil.xyz"
+    assert web_host("https:\\\\evil.xyz/login") == "evil.xyz"
+    assert web_host("http:/evil.xyz") == "evil.xyz"
+    assert web_host("ht\ttps://ev\nil.xyz/") == "evil.xyz"
+
+
 def test_defang_makes_addresses_unclickable():
     assert defang("http://evil.com/login") == "hxxp://evil[.]com/login"
     assert defang("paypa1.com") == "paypa1[.]com"

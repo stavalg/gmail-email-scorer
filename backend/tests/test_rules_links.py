@@ -74,6 +74,11 @@ def test_protocol_relative_and_uppercase_links():
     assert result[0].evidence == "2 link(s): evil[.]top"
 
 
+def test_backslash_trick_is_analyzed_as_the_host_browsers_open():
+    found = run('<a href="https://evil.xyz\\@paypal.com/login">paypal.com</a>')
+    assert {"link_text_mismatch", "abused_tld"} <= found
+
+
 def test_userinfo_trick_uses_real_host():
     result = findings('<a href="http://paypal.com@evil.xyz/login">Login</a>')
     assert ids(result) == {"abused_tld"}
