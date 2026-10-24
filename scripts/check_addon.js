@@ -27,16 +27,18 @@ for (const [score, filled] of [[0, 0], [29, 6], [30, 7], [35, 8], [69, 14], [70,
     const expected = cell < filled ? ZONES[zone(cell)].strong : ZONES[zone(cell)].pale;
     assert.strictEqual(color, expected, `score ${score}, cell ${cell}`);
   });
-  const plain = context.scoreBar(score).replace(/<[^>]+>/g, '');
-  assert.strictEqual(plain, '0 ' + '▄'.repeat(20) + ' 100');
+  const barText = context.scoreBar(score).replace(/<[^>]+>/g, '');
+  assert.strictEqual(barText, '0 ' + '▄'.repeat(20) + ' 100');
 }
 
 // Truncation must never split an emoji (a UTF-16 surrogate pair): the backend rejects half a character.
-assert.deepStrictEqual(context.truncate('abc', 5), { text: 'abc', cut: false });
-assert.deepStrictEqual(context.truncate('abcdef', 3), { text: 'abc', cut: true });
-assert.deepStrictEqual(context.truncate('a😀b', 2), { text: 'a', cut: true });
-assert.deepStrictEqual(context.truncate('', 3), { text: '', cut: false });
-assert.deepStrictEqual(context.truncate(null, 3), { text: '', cut: false });
+// (plain() copies the sandbox's object so Node compares values, not object origins.)
+const plain = (value) => JSON.parse(JSON.stringify(value));
+assert.deepStrictEqual(plain(context.truncate('abc', 5)), { text: 'abc', cut: false });
+assert.deepStrictEqual(plain(context.truncate('abcdef', 3)), { text: 'abc', cut: true });
+assert.deepStrictEqual(plain(context.truncate('a😀b', 2)), { text: 'a', cut: true });
+assert.deepStrictEqual(plain(context.truncate('', 3)), { text: '', cut: false });
+assert.deepStrictEqual(plain(context.truncate(null, 3)), { text: '', cut: false });
 
 const valid = { verdict: 'safe', score: 5, findings: [], facts: [], notices: [], coverage: {} };
 assert.strictEqual(context.validateResult(valid), valid);
