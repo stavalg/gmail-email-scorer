@@ -51,6 +51,23 @@ def test_hebrew_display_name_has_no_findings():
     assert run("From: =?UTF-8?B?16nXnNeV150=?= <a@example.com>") == set()
 
 
+def test_common_words_and_names_are_not_brands():
+    assert run("From: Weekly Market Outlook <news@marketnews.com>") == set()
+    assert run("From: Chase Miller <chase@gmail.com>") == set()
+    assert run("From: Apple Valley Farm <shop@applevalley.com>") == set()
+
+
+def test_specific_brand_phrases_still_catch_impersonation():
+    assert "brand_display_name" in run("From: Chase Bank Alerts <alerts@secure-mail.com>")
+    assert "brand_display_name" in run("From: Apple Support <help@random-shop.com>")
+    assert "brand_display_name" in run("From: Outlook Team <team@random-shop.com>")
+
+
+def test_regional_brand_domain_is_not_impersonation():
+    # Consistent with the link rule: an exact brand label on another ending is a regional site.
+    assert run("From: Amazon.fr <confirmation@amazon.fr>") == set()
+
+
 def test_edit_distance():
     assert sender.edit_distance("gooogle", "google") == 1
     assert sender.edit_distance("paypal", "paypal") == 0

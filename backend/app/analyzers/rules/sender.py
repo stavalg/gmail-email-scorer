@@ -44,7 +44,7 @@ def find_lookalike_brand(domain: str) -> Brand | None:
     for brand in BRANDS:
         if domain in brand.domains:
             continue
-        for token in brand.domain_tokens:
+        for token in brand.labels:
             if label == token or len(token) < 5:
                 continue
             if normalized == token or (len(token) >= 6 and edit_distance(label, token) == 1):
@@ -66,11 +66,17 @@ def edit_distance(a: str, b: str) -> int:
 
 def _brand_in_display_name(sender: Address, out: RuleOutput) -> None:
     brand = find_brand_in_text(sender.display_name)
-    if brand and sender.domain not in brand.domains:
+    if brand and not _is_brand_domain(sender.domain, brand):
         out.findings.append(make_finding(
             "brand_display_name", "sender", "Sender name impersonates a brand",
             f'The name says "{brand.name}" but the email comes from '
             f"{defang(sender.domain or sender.address)}."))
+
+
+def _is_brand_domain(domain: str, brand: Brand) -> bool:
+    """The brand's own domain, or the brand's exact name on another ending (amazon.fr) —
+    treated as a regional site, consistent with the link rule."""
+    return domain in brand.domains or (bool(domain) and split_host(domain)[1] in brand.labels)
 
 
 def _lookalike_domain(sender: Address, out: RuleOutput) -> None:

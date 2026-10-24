@@ -50,37 +50,38 @@ validate_weights(WEIGHTS)  # a bad edit stops the app from starting instead of s
 @dataclass(frozen=True)
 class Brand:
     name: str                   # shown to the user
-    keywords: tuple[str, ...]   # matched as whole words in sender names
+    keywords: tuple[str, ...]   # phrases matched as whole words in sender NAMES; specific enough
+                                # that people and newsletters don't match ("chase bank", not "chase")
+    labels: tuple[str, ...]     # domain labels for lookalike / hidden-brand checks on DOMAINS
     domains: tuple[str, ...]    # legitimate registrable domains; the first is the main one
-
-    @property
-    def domain_tokens(self) -> tuple[str, ...]:
-        return tuple(keyword.replace(" ", "") for keyword in self.keywords)
 
 
 BRANDS: tuple[Brand, ...] = (
-    Brand("PayPal", ("paypal",), ("paypal.com", "paypal.me")),
-    Brand("Microsoft", ("microsoft", "outlook", "office 365", "onedrive"),
+    Brand("PayPal", ("paypal",), ("paypal",), ("paypal.com", "paypal.me")),
+    Brand("Microsoft", ("microsoft", "office 365", "onedrive", "outlook team", "outlook.com"),
+          ("microsoft", "outlook", "office365", "onedrive"),
           ("microsoft.com", "live.com", "outlook.com", "office.com", "office365.com",
            "microsoftonline.com", "onedrive.com", "sharepoint.com")),
-    Brand("Google", ("google",), ("google.com", "youtube.com")),
-    Brand("Apple", ("apple", "icloud"), ("apple.com", "icloud.com")),
-    Brand("Amazon", ("amazon",), ("amazon.com", "amazon.co.uk", "amazon.de", "amazonses.com")),
-    Brand("Netflix", ("netflix",), ("netflix.com",)),
-    Brand("Meta", ("facebook", "instagram", "whatsapp"),
+    Brand("Google", ("google",), ("google",), ("google.com", "youtube.com")),
+    Brand("Apple", ("apple support", "apple id", "apple store", "icloud"), ("apple", "icloud"),
+          ("apple.com", "icloud.com")),
+    Brand("Amazon", ("amazon",), ("amazon",), ("amazon.com", "amazon.co.uk", "amazon.de", "amazonses.com")),
+    Brand("Netflix", ("netflix",), ("netflix",), ("netflix.com",)),
+    Brand("Meta", ("facebook", "instagram", "whatsapp"), ("facebook", "instagram", "whatsapp"),
           ("facebook.com", "facebookmail.com", "instagram.com", "whatsapp.com", "meta.com")),
-    Brand("LinkedIn", ("linkedin",), ("linkedin.com",)),
-    Brand("DHL", ("dhl",), ("dhl.com", "dhl.de")),
-    Brand("FedEx", ("fedex",), ("fedex.com",)),
-    Brand("UPS", ("ups",), ("ups.com",)),
-    Brand("DocuSign", ("docusign",), ("docusign.com", "docusign.net")),
-    Brand("Dropbox", ("dropbox",), ("dropbox.com", "dropboxmail.com")),
-    Brand("Adobe", ("adobe",), ("adobe.com",)),
-    Brand("Chase", ("chase",), ("chase.com",)),
-    Brand("Wells Fargo", ("wells fargo",), ("wellsfargo.com",)),
-    Brand("Bank of America", ("bank of america",), ("bankofamerica.com", "bofa.com")),
-    Brand("Coinbase", ("coinbase",), ("coinbase.com",)),
-    Brand("Binance", ("binance",), ("binance.com",)),
+    Brand("LinkedIn", ("linkedin",), ("linkedin",), ("linkedin.com",)),
+    Brand("DHL", ("dhl",), ("dhl",), ("dhl.com", "dhl.de")),
+    Brand("FedEx", ("fedex",), ("fedex",), ("fedex.com",)),
+    Brand("UPS", ("ups delivery", "ups shipping", "ups my choice", "united parcel service"), ("ups",),
+          ("ups.com",)),
+    Brand("DocuSign", ("docusign",), ("docusign",), ("docusign.com", "docusign.net")),
+    Brand("Dropbox", ("dropbox",), ("dropbox",), ("dropbox.com", "dropboxmail.com")),
+    Brand("Adobe", ("adobe",), ("adobe",), ("adobe.com",)),
+    Brand("Chase", ("chase bank", "jpmorgan chase", "chase online"), ("chase",), ("chase.com",)),
+    Brand("Wells Fargo", ("wells fargo",), ("wellsfargo",), ("wellsfargo.com",)),
+    Brand("Bank of America", ("bank of america",), ("bankofamerica",), ("bankofamerica.com", "bofa.com")),
+    Brand("Coinbase", ("coinbase",), ("coinbase",), ("coinbase.com",)),
+    Brand("Binance", ("binance",), ("binance",), ("binance.com",)),
 )
 
 SHORTENERS = frozenset({

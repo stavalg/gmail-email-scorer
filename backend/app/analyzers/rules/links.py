@@ -72,7 +72,7 @@ def find_hidden_brand(subdomain: str, label: str, domain: str) -> Brand | None:
     for brand in BRANDS:
         if domain in brand.domains:
             continue
-        if any(token in tokens and token != label for token in brand.domain_tokens):
+        if any(token in tokens and token != label for token in brand.labels):
             return brand
     return None
 
