@@ -401,6 +401,9 @@ control characters, mixed scripts, malformed headers): all handled without an er
   Left out on purpose (least privilege).
 - **One-click actions** (report / move to spam) — needs modify permission; same trade-off.
 - **User feedback loop** ("this verdict was wrong") — needs storage; left out to stay stateless.
+- **Shared reports across users** — if other users already reported the same sender, link or
+  attachment as phishing, raise the score for everyone who receives it. Needs a shared database
+  and protection against fake reports. Left out to keep the backend stateless.
 - **Short-lived result cache** so the card survives panel redraws.
 - More languages, a larger brand list, and attachment content scanning in an isolated sandbox.
 
