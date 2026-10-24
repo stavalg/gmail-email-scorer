@@ -24,7 +24,6 @@ verdict (**Safe / Suspicious / Malicious**) and the evidence behind it — every
 | **Analysis** | 24 explainable rule signals · VirusTotal reputation · AI assessment (Gemini) |
 | **Security** | Google identity-token auth (no shared secret) · least-privilege scopes · all input treated as hostile |
 | **Quality** | 127 automated tests · locked dependencies · vulnerability scan in CI |
-| **Cost** | $0 (free tiers) |
 
 ---
 
