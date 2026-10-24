@@ -15,7 +15,7 @@ assert.strictEqual(
   '&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;',
 );
 
-// Score scale: one unbroken bar "0 ████████████████████ 100" of 20 cells (5 points each),
+// Score scale: one unbroken half-height bar "0 ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ 100" of 20 cells (5 points each),
 // filled up to the score in strong zone colors (green <30, orange 30-69, red 70+), the rest pale.
 const ZONES = vm.runInContext('ZONE_COLORS', context);  // top-level const isn't a property of the context
 const zone = (cell) => (cell * 5 >= 70 ? 'malicious' : cell * 5 >= 30 ? 'suspicious' : 'safe');
@@ -27,7 +27,7 @@ for (const [score, filled] of [[0, 0], [35, 7], [100, 20]]) {
     assert.strictEqual(color, expected, `score ${score}, cell ${cell}`);
   });
   const plain = context.scoreBar(score).replace(/<[^>]+>/g, '');
-  assert.strictEqual(plain, '0 ' + '█'.repeat(20) + ' 100');
+  assert.strictEqual(plain, '0 ' + '▄'.repeat(20) + ' 100');
 }
 
 const valid = { verdict: 'safe', score: 5, findings: [], advice: [], facts: [], notices: [], coverage: {} };

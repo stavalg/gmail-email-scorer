@@ -52,13 +52,13 @@ function buildResultCard(result) {
   // The verdict and its scale sit together at the top (a card header can't hold colors).
   const verdict = '<font color="' + style.color + '"><b>' + style.icon + ' ' + style.label
     + ' · ' + result.score + ' / 100</b></font><br>' + scoreBar(result.score);
-  const summary = ['<b>' + escapeHtml(result.summary) + '</b>']
+  const summary = ['<font color="' + style.color + '"><b>' + escapeHtml(result.summary) + '</b></font>']
     .concat(result.notices.map((n) => '⚠️ ' + escapeHtml(n)))
     .concat(isSafe ? result.facts.map((f) => '✅ ' + escapeHtml(f)) : []);
 
-  const card = CardService.newCardBuilder().addSection(CardService.newCardSection()
-    .addWidget(CardService.newTextParagraph().setText(verdict))
-    .addWidget(CardService.newTextParagraph().setText(summary.join('<br>'))));
+  const card = CardService.newCardBuilder()
+    .addSection(textSection(null, [verdict]))
+    .addSection(textSection(null, summary));
   if (result.findings.length) card.addSection(findingsSection(result.findings));
   card.addSection(detailsSection(result, !isSafe));
   card.addSection(CardService.newCardSection().addWidget(analyzeButton('Analyze again')));
@@ -82,9 +82,9 @@ function scoreBarCells(score) {
   return cells;
 }
 
-/** One unbroken progress bar drawn with text (cards can't draw graphics): 0 ████ 100. */
+/** One unbroken, half-height progress bar drawn with text (cards can't draw graphics). */
 function scoreBar(score) {
-  const bar = scoreBarCells(score).map((color) => '<font color="' + color + '">█</font>').join('');
+  const bar = scoreBarCells(score).map((color) => '<font color="' + color + '">▄</font>').join('');
   return '<font color="#9aa0a6">0 </font>' + bar + '<font color="#9aa0a6"> 100</font>';
 }
 
