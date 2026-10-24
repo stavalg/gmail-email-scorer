@@ -21,7 +21,7 @@ def test_softfail_gets_half_points():
 def test_all_pass_is_a_fact_not_a_bonus():
     out = authentication.check(make_context(headers_raw=auth_header()))
     assert out.findings == []
-    assert any("passed for example[.]com" in fact for fact in out.facts)
+    assert "Sender verified: example[.]com (DMARC/SPF/DKIM passed)." in out.facts
 
 
 def test_neutral_results_are_facts_without_points():

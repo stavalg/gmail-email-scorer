@@ -12,25 +12,19 @@ KNOWN_MALICIOUS_FLOOR = 90
 CAUTION_NOTICE = "Some checks did not complete — treat 'Safe' with caution."
 
 SUMMARIES = {
-    "safe": "No significant warning signs were found in this email.",
-    "suspicious": "This email has some warning signs. Treat it with caution.",
-    "malicious": "This email shows strong signs of phishing or malware.",
+    "safe": "No warning signs found.",
+    "suspicious": "Some warning signs — be careful.",
+    "malicious": "Strong signs of phishing or malware.",
 }
 
+# One short sentence: the card must be readable at a glance.
 ADVICE = {
-    "safe": (
-        "No action needed.",
-        "Still be careful with unexpected requests for passwords or payments — no tool is perfect.",
-    ),
+    "safe": (),
     "suspicious": (
-        "Don't click links or open attachments until you've verified the sender.",
-        "Contact the sender through a channel you already trust — not by replying.",
-        "If it claims to be from a company, go to their website directly instead of using the links.",
+        "Don't open links or attachments until you've confirmed the sender another way.",
     ),
     "malicious": (
-        "Don't click any links or open any attachments.",
-        "Don't reply or share any information.",
-        "Report it: in Gmail open ⋮ (More) → Report phishing, then delete it.",
+        "Don't open links or attachments, reply, or share any information. Report it as phishing.",
     ),
 }
 

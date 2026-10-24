@@ -40,8 +40,8 @@ def check(ctx: EmailContext) -> RuleOutput:
             out.facts.append(f"{label} result: {result} (no penalty).")
 
     if passed:
+        # Proves who sent it, not that they are trustworthy: passes never lower the score.
         sender = ctx.headers.sender
         domain = defang(sender.domain) if sender and sender.domain else "the sender's domain"
-        out.facts.append(f"{'/'.join(passed)} passed for {domain}. This proves who sent it, "
-                         "not that they are trustworthy.")
+        out.facts.append(f"Sender verified: {domain} ({'/'.join(passed)} passed).")
     return out

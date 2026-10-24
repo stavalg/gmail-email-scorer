@@ -41,26 +41,26 @@ function buildStartCard() {
     .build();
 }
 
+/**
+ * Clean at a glance: verdict, one line of advice and any warnings are visible;
+ * the reasons and the analyst details open on demand.
+ */
 function buildResultCard(result) {
   const style = VERDICT_STYLES[result.verdict];
+  const isSafe = result.verdict === 'safe';
   const card = CardService.newCardBuilder().setHeader(CardService.newCardHeader()
     .setTitle(style.icon + ' ' + style.label + ' · ' + result.score + ' / 100')
-    .setSubtitle('Email Security Check'));
+    .setSubtitle('0–29 Safe · 30–69 Suspicious · 70–100 Malicious'));
 
-  const headline = '<font color="' + style.color + '"><b>' + escapeHtml(result.summary) + '</b></font>';
-  card.addSection(textSection(null, [headline].concat(result.notices.map((n) => '⚠️ ' + escapeHtml(n)))));
-  card.addSection(textSection('✋ What should I do?', result.advice.map((a) => '• ' + escapeHtml(a))));
-  card.addSection(findingsSection(result.findings));
-  if (result.facts.length) {
-    card.addSection(textSection('✅ Verified facts', result.facts.map((f) => '• ' + escapeHtml(f))));
-  }
-  card.addSection(textSection('📊 Analysis coverage', Object.keys(result.coverage)
-    .map((name) => escapeHtml(describeCoverage(name, result.coverage[name])))));
-  card.addSection(detailsSection(result.details || {}));
-  card.addSection(textSection(null, [
-    'Score: 0–29 Safe · 30–69 Suspicious · 70–100 Malicious',
-    '<i>Automated assessment — it may be wrong.</i>',
-  ]).addWidget(analyzeButton('Analyze again')));
+  const lines = ['<font color="' + style.color + '"><b>' + escapeHtml(result.summary) + '</b></font>']
+    .concat(result.advice.map((a) => '✋ ' + escapeHtml(a)))
+    .concat(result.notices.map((n) => '⚠️ ' + escapeHtml(n)))
+    .concat(isSafe ? result.facts.map((f) => '✅ ' + escapeHtml(f)) : []);
+  card.addSection(textSection(null, lines));
+
+  if (result.findings.length) card.addSection(findingsSection(result.findings));
+  card.addSection(detailsSection(result, !isSafe));
+  card.addSection(CardService.newCardSection().addWidget(analyzeButton('Analyze again')));
   return card.build();
 }
 
@@ -85,11 +85,12 @@ function analyzeButton(label) {
     .setOnClickAction(CardService.newAction().setFunctionName('onAnalyze'));
 }
 
+/** Collapsed by default: the header shows how many reasons there are; tap to expand. */
 function findingsSection(findings) {
-  const section = CardService.newCardSection().setHeader('🔍 Why? (strongest first)');
-  if (!findings.length) {
-    return section.addWidget(CardService.newTextParagraph().setText('No warning signs found.'));
-  }
+  const section = CardService.newCardSection()
+    .setHeader('🔍 Why? (' + findings.length + (findings.length === 1 ? ' reason)' : ' reasons)'))
+    .setCollapsible(true)
+    .setNumUncollapsibleWidgets(0);
   findings.forEach((finding) => {
     section.addWidget(CardService.newDecoratedText()
       .setTopLabel('+' + Number(finding.points) + ' · ' + String(finding.category))
@@ -107,11 +108,16 @@ function describeCoverage(name, item) {
   return text;
 }
 
-function detailsSection(details) {
-  const lines = Object.keys(details).map((key) =>
-    '<b>' + escapeHtml(key) + ':</b> ' + escapeHtml(JSON.stringify(details[key])));
+/** Collapsed analyst view: verified facts (when not already shown), coverage and technical data. */
+function detailsSection(result, includeFacts) {
+  const details = result.details || {};
+  const lines = (includeFacts ? result.facts.map((f) => '✅ ' + escapeHtml(f)) : [])
+    .concat(Object.keys(result.coverage)
+      .map((name) => '📊 ' + escapeHtml(describeCoverage(name, result.coverage[name]))))
+    .concat(Object.keys(details).map((key) =>
+      '<b>' + escapeHtml(key) + ':</b> ' + escapeHtml(JSON.stringify(details[key]))));
   return CardService.newCardSection()
-    .setHeader('Technical details (for analysts)')
+    .setHeader('Details')
     .setCollapsible(true)
     .setNumUncollapsibleWidgets(0)
     .addWidget(CardService.newTextParagraph().setText(lines.join('<br>') || 'None'));

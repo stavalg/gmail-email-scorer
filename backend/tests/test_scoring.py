@@ -63,3 +63,9 @@ def test_coverage_and_details_are_reported():
     assert response.coverage["virustotal"].checked == 1
     assert response.details == {"from_domain": "a[.]com", "virustotal": {"lookups": []}}
     assert response.notices[0] == "n"
+
+
+def test_advice_is_one_sentence_and_safe_has_none():
+    assert score_results([rules()]).advice == []
+    for points in (40, 80):
+        assert len(score_results([rules(finding(points))]).advice) == 1
