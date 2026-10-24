@@ -14,7 +14,7 @@ def _normalize(host: str) -> str:
 
 def registrable_domain(host: str) -> str:
     """The part of a host that someone actually registered: 'login.paypal.co.uk' -> 'paypal.co.uk'."""
-    return _extract(_normalize(host)).registered_domain
+    return _extract(_normalize(host)).top_domain_under_public_suffix
 
 
 def split_host(host: str) -> tuple[str, str, str]:
