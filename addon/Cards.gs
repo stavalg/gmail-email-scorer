@@ -71,13 +71,16 @@ const ZONE_COLORS = {
   malicious: { strong: '#d93025', pale: '#fad2cf' },
 };
 
-/** Color of each of the 20 cells (5 points each): strong up to the score, pale after it. */
+/**
+ * Color of each of the 20 cells (5 points each): strong once the score reaches the cell's
+ * start, pale otherwise — so a score of 30 shows orange and 70 shows red, like the verdict.
+ */
 function scoreBarCells(score) {
-  const filled = Math.round(score / 5);
   const cells = [];
   for (let cell = 0; cell < 20; cell++) {
     const zone = cell * 5 >= 70 ? 'malicious' : cell * 5 >= 30 ? 'suspicious' : 'safe';
-    cells.push(cell < filled ? ZONE_COLORS[zone].strong : ZONE_COLORS[zone].pale);
+    const filled = score > 0 && cell * 5 <= score;
+    cells.push(filled ? ZONE_COLORS[zone].strong : ZONE_COLORS[zone].pale);
   }
   return cells;
 }

@@ -6,7 +6,7 @@ const vm = require('vm');
 
 const context = {};
 vm.createContext(context);
-for (const file of ['addon/Cards.gs', 'addon/Api.gs']) {
+for (const file of ['addon/Cards.gs', 'addon/Api.gs', 'addon/Extract.gs']) {
   vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
 }
 
@@ -19,7 +19,8 @@ assert.strictEqual(
 // filled up to the score in strong zone colors (green <30, orange 30-69, red 70+), the rest pale.
 const ZONES = vm.runInContext('ZONE_COLORS', context);  // top-level const isn't a property of the context
 const zone = (cell) => (cell * 5 >= 70 ? 'malicious' : cell * 5 >= 30 ? 'suspicious' : 'safe');
-for (const [score, filled] of [[0, 0], [35, 7], [100, 20]]) {
+// A cell is filled when the score reaches its start, so 30 shows orange and 70 shows red.
+for (const [score, filled] of [[0, 0], [29, 6], [30, 7], [35, 8], [69, 14], [70, 15], [100, 20]]) {
   const cells = context.scoreBarCells(score);
   assert.strictEqual(cells.length, 20, `score ${score}`);
   cells.forEach((color, cell) => {
@@ -29,6 +30,13 @@ for (const [score, filled] of [[0, 0], [35, 7], [100, 20]]) {
   const plain = context.scoreBar(score).replace(/<[^>]+>/g, '');
   assert.strictEqual(plain, '0 ' + '▄'.repeat(20) + ' 100');
 }
+
+// Truncation must never split an emoji (a UTF-16 surrogate pair): the backend rejects half a character.
+assert.deepStrictEqual(context.truncate('abc', 5), { text: 'abc', cut: false });
+assert.deepStrictEqual(context.truncate('abcdef', 3), { text: 'abc', cut: true });
+assert.deepStrictEqual(context.truncate('a😀b', 2), { text: 'a', cut: true });
+assert.deepStrictEqual(context.truncate('', 3), { text: '', cut: false });
+assert.deepStrictEqual(context.truncate(null, 3), { text: '', cut: false });
 
 const valid = { verdict: 'safe', score: 5, findings: [], facts: [], notices: [], coverage: {} };
 assert.strictEqual(context.validateResult(valid), valid);

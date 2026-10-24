@@ -10,15 +10,25 @@ const LIMITS = {
   HASH_MAX_BYTES: 10 * 1024 * 1024,
 };
 
+/**
+ * Cuts text to at most `max` UTF-16 units without splitting an emoji (a surrogate pair):
+ * half a character is invalid text and the backend would reject the whole email.
+ */
+function truncate(value, max) {
+  const text = value || '';
+  if (text.length <= max) return { text: text, cut: false };
+  let end = max;
+  const last = text.charCodeAt(end - 1);
+  if (last >= 0xD800 && last <= 0xDBFF) end -= 1;  // high surrogate: its pair was cut off
+  return { text: text.slice(0, end), cut: true };
+}
+
 function extractEmail(message) {
   let truncated = false;
   const cut = (value, max) => {
-    const text = value || '';
-    if (text.length > max) {
-      truncated = true;
-      return text.slice(0, max);
-    }
-    return text;
+    const result = truncate(value, max);
+    if (result.cut) truncated = true;
+    return result.text;
   };
 
   const raw = message.getRawContent();
@@ -41,8 +51,8 @@ function extractEmail(message) {
 function describeAttachment(attachment) {
   const size = attachment.getSize();
   return {
-    name: (attachment.getName() || '').slice(0, LIMITS.NAME_CHARS),
-    content_type: (attachment.getContentType() || '').slice(0, LIMITS.TYPE_CHARS),
+    name: truncate(attachment.getName(), LIMITS.NAME_CHARS).text,
+    content_type: truncate(attachment.getContentType(), LIMITS.TYPE_CHARS).text,
     size: size,
     // Only a fingerprint is sent, so the backend can look it up without seeing the file.
     sha256: size <= LIMITS.HASH_MAX_BYTES ? sha256Hex(attachment.getBytes()) : null,
