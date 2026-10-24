@@ -281,6 +281,88 @@ No mailbox-wide read, no modify scopes.
 scope), first-time-sender check (needs mailbox-wide read), user feedback learning (needs
 storage). Each is a conscious security/privacy trade-off.
 
+## 6A. Edge cases and failure behavior
+
+### Principles
+
+1. **A failure never looks like "Safe".** Each rule check runs in isolation (its own
+   try/except). If a check fails, the others continue and coverage reports
+   `rules: partial (n checks failed)`; a Safe verdict with partial coverage shows
+   "Some checks failed — treat 'Safe' with caution". If the analysis as a whole fails, the
+   backend returns an error and the add-on shows the error card — never a score.
+2. **Truncation is always disclosed.** Any limit that cuts input (body, links, attachments) sets a
+   `truncated` flag shown on the card. Links are extracted from the full HTML *before* body
+   truncation (up to 200), so padding the start of an email cannot hide a malicious link.
+3. **Malformed input degrades, never crashes.** Unparseable pieces are skipped and noted.
+
+### Email content
+
+| Case | Behavior |
+|---|---|
+| Empty body | Header/sender/attachment checks still run; LLM skipped ("nothing to analyze") |
+| Empty subject | Normal processing |
+| Only HTML / only plain text | Plain text derived from HTML when missing |
+| Mostly images | Fact: "Mostly images — text analysis limited" |
+| Encoded headers (RFC 2047) | Decoded before analysis |
+| Missing/malformed From | Sender checks skipped; finding "Malformed sender address" +10 |
+| Own sent email (no auth header) | Authentication checks skipped, no penalty |
+| Forwarded email | Forwarder is analyzed (documented limitation) |
+| Thread | The opened message is analyzed |
+
+### Authentication results
+
+| Result | Points |
+|---|---|
+| `fail` | Full weight |
+| `softfail` | Half weight (rounded down) |
+| `none`, `neutral`, `temperror`, `permerror`, missing | 0, shown as a fact |
+| Non-Google `Authentication-Results` headers | Ignored |
+
+### Links
+
+| Case | Behavior |
+|---|---|
+| Text and target share the registrable domain (`paypal.com` → `click.paypal.com/x`) | Not a mismatch |
+| Plain-text (non-anchor) URLs | Extracted by regex |
+| `mailto:`, `tel:`, relative, `#` links | Ignored |
+| `data:` / `javascript:` links | Finding "Script/data link" +25 |
+| Malformed URL | Skipped |
+| Brand's own legitimate domains | Never flagged (each brand lists its legitimate domains) |
+| Brand matching | Whole-token matching on domain labels, not substrings (`pineapple.com` ≠ apple) |
+
+### Attachments
+
+| Case | Behavior |
+|---|---|
+| Extension case (`.EXE`) | Case-insensitive |
+| Trailing dots/spaces (`a.pdf .exe`, `a.exe.`) | Normalized before checks |
+| Unicode bidi override characters (U+202E etc.) in filename | Finding "Disguised file name (right-to-left trick)" +60 |
+| No filename | Checked by content type only |
+| Inline images | Excluded (`includeInlineImages: false`) |
+| > 10 MB | Not hashed; noted |
+| > 50 attachments | First 50 analyzed; truncated flag |
+
+### Scoring
+
+| Case | Behavior |
+|---|---|
+| Sum > 100 | Capped at 100 |
+| No findings, full coverage | 0 → Safe |
+| Exactly 30 / 70 | Suspicious / Malicious (boundary tests) |
+| Negative or non-integer weight in config | Rejected at startup |
+| LLM value out of 0–100 or invalid JSON | Rejected; LLM status `error` |
+
+### System
+
+| Case | Behavior |
+|---|---|
+| Backend unreachable / 5xx / timeout | Generic error card + Retry |
+| 401 / 403 | "You're not authorized to use this service" |
+| Response fails add-on validation (verdict not in set, score not 0–100) | Error card |
+| VirusTotal 429 | Status `rate_limited`; continue |
+| Repeated clicks | Harmless (stateless) |
+| Gmail mobile | Cards supported; tested if time allows |
+
 ## 7. Repository structure
 
 ```
@@ -326,6 +408,10 @@ timeouts), `google-auth` (token verification), `tldextract` (with bundled suffix
 - **API tests** with FastAPI `TestClient`: valid request, oversized input, missing/invalid token
   (token verification mocked).
 - **Analyzer failure tests:** VirusTotal/LLM timeout → result still returned with coverage status.
+- **Edge-case tests (§6A):** empty email, malformed From, forged auth header, softfail,
+  same-registrable-domain links, `pineapple.com`, RTLO filename, `.EXE`/trailing-dot names,
+  score cap, 29/30/69/70 boundaries, a crashing rule → partial coverage (never silent Safe),
+  padded email with a link after 100 KB still detected.
 - **Manual add-on test plan** with demo emails (§9).
 
 ## 9. Demo preparation
