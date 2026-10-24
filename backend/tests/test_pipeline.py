@@ -16,6 +16,7 @@ def run(settings):
 def test_unconfigured_analyzers_are_skipped():
     result = run(make_settings())
     assert result.coverage["virustotal"].status == "skipped"
+    assert result.coverage["llm"].status == "skipped"
     assert CAUTION_NOTICE not in result.notices
 
 

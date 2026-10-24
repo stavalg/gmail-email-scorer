@@ -7,7 +7,7 @@ import ssl
 import certifi
 import httpx
 
-from app.analyzers import virustotal
+from app.analyzers import llm, virustotal
 from app.analyzers.base import AnalyzerResult
 from app.analyzers.rules.runner import run_rules
 from app.config import Settings
@@ -31,13 +31,15 @@ async def analyze_email(request: AnalyzeRequest, settings: Settings) -> AnalyzeR
 async def run_optional_analyzers(ctx: EmailContext, settings: Settings) -> list[AnalyzerResult]:
     """External services. Each is optional (skipped without an API key), time-boxed, runs in
     parallel with the others, and can never break the analysis: a failure becomes a status."""
-    keys = {"virustotal": settings.virustotal_api_key}
+    keys = {"virustotal": settings.virustotal_api_key, "llm": settings.gemini_api_key}
     if not any(keys.values()):
         return [AnalyzerResult(name=name, status="skipped") for name in keys]
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS, verify=_tls_context()) as client:
         jobs = [
             ("virustotal", keys["virustotal"],
              lambda: virustotal.analyze(ctx, keys["virustotal"], client)),
+            ("llm", keys["llm"],
+             lambda: llm.analyze(ctx, keys["llm"], settings.gemini_model, client)),
         ]
         return list(await asyncio.gather(*(_guarded(name, key, start) for name, key, start in jobs)))
 
