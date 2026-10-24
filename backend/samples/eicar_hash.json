@@ -1,0 +1,7 @@
+{
+  "headers_raw": "From: Billing <billing@example.com>\r\nSubject: Your invoice",
+  "body_text": "Invoice attached.",
+  "attachments": [{"name": "invoice.txt", "content_type": "text/plain", "size": 68,
+                   "sha256": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"}],
+  "truncated": false
+}
