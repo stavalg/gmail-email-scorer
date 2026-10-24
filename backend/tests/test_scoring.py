@@ -65,7 +65,6 @@ def test_coverage_and_details_are_reported():
     assert response.notices[0] == "n"
 
 
-def test_advice_is_one_sentence_and_safe_has_none():
-    assert score_results([rules()]).advice == []
-    for points in (40, 80):
-        assert len(score_results([rules(finding(points))]).advice) == 1
+def test_response_has_no_advice_field():
+    # The card shows verdict, reasons and details only; advice text was removed by design.
+    assert "advice" not in score_results([rules()]).model_dump()

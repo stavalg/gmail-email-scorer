@@ -39,7 +39,7 @@ function validateResult(data) {
   const ok = data !== null && typeof data === 'object'
     && VERDICTS.includes(data.verdict)
     && Number.isInteger(data.score) && data.score >= 0 && data.score <= 100
-    && ['findings', 'advice', 'facts', 'notices'].every((key) => Array.isArray(data[key]))
+    && ['findings', 'facts', 'notices'].every((key) => Array.isArray(data[key]))
     && data.coverage !== null && typeof data.coverage === 'object';
   if (!ok) throw new AddonError('invalid_response');
   return data;

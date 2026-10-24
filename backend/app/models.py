@@ -53,7 +53,6 @@ class AnalyzeResponse(BaseModel):
     score: int = Field(ge=0, le=100)
     verdict: Verdict
     summary: str
-    advice: list[str]
     findings: list[FindingOut]
     facts: list[str]
     coverage: dict[str, CoverageItem]

@@ -17,17 +17,6 @@ SUMMARIES = {
     "malicious": "Strong signs of phishing or malware.",
 }
 
-# One short sentence: the card must be readable at a glance.
-ADVICE = {
-    "safe": (),
-    "suspicious": (
-        "Don't open links or attachments until you've confirmed the sender another way.",
-    ),
-    "malicious": (
-        "Don't open links or attachments, reply, or share any information. Report it as phishing.",
-    ),
-}
-
 
 def verdict_for(score: int) -> str:
     if score >= MALICIOUS_MIN:
@@ -53,7 +42,6 @@ def score_results(results: list[AnalyzerResult], notices: Iterable[str] = (),
         score=score,
         verdict=verdict,
         summary=SUMMARIES[verdict],
-        advice=list(ADVICE[verdict]),
         findings=[
             FindingOut(id=f.id, category=f.category, title=clean_text(f.title),
                        evidence=clean_text(f.evidence), points=f.points)

@@ -30,7 +30,7 @@ for (const [score, filled] of [[0, 0], [35, 7], [100, 20]]) {
   assert.strictEqual(plain, '0 ' + '▄'.repeat(20) + ' 100');
 }
 
-const valid = { verdict: 'safe', score: 5, findings: [], advice: [], facts: [], notices: [], coverage: {} };
+const valid = { verdict: 'safe', score: 5, findings: [], facts: [], notices: [], coverage: {} };
 assert.strictEqual(context.validateResult(valid), valid);
 const invalid = [
   null,
