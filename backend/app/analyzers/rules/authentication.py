@@ -40,8 +40,13 @@ def check(ctx: EmailContext) -> RuleOutput:
             out.facts.append(f"{label} result: {result} (no penalty).")
 
     if passed:
-        # Proves who sent it, not that they are trustworthy: passes never lower the score.
+        # Passes are facts, never points. Only DMARC ties the result to the visible From address:
+        # SPF/DKIM can pass for an envelope or signing domain the attacker owns.
         sender = ctx.headers.sender
         domain = defang(sender.domain) if sender and sender.domain else "the sender's domain"
-        out.facts.append(f"Sender verified: {domain} ({'/'.join(passed)} passed).")
+        if "DMARC" in passed:
+            out.facts.append(f"Sender verified: {domain} ({'/'.join(passed)} passed).")
+        else:
+            out.facts.append(f"{'/'.join(passed)} passed for the sending or signing domain; "
+                             f"this does not confirm the From address ({domain}).")
     return out
