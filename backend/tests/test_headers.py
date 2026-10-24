@@ -76,3 +76,19 @@ def test_decodes_hebrew_display_name():
 def test_empty_headers_do_not_crash():
     parsed = parse_headers("")
     assert parsed.sender is None and parsed.auth is None and parsed.subject == ""
+
+
+def test_attacker_text_inside_googles_header_cannot_fake_a_result():
+    # The envelope sender is attacker-chosen and Google echoes it inside the spf clause.
+    raw = ("Authentication-Results: mx.google.com;\r\n"
+           "       spf=pass (google.com: domain of dmarc=pass@evil.com designates 1.2.3.4 as permitted sender)"
+           ' smtp.mailfrom="dmarc=pass@evil.com";\r\n'
+           "       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=paypal.com\r\n"
+           "From: PayPal <service@paypal.com>")
+    assert parse_headers(raw).auth == {"spf": "pass", "dmarc": "fail"}
+
+
+def test_lookalike_authserv_id_is_not_trusted():
+    raw = "Authentication-Results: mx.google.com.evil.net; dmarc=pass\r\nFrom: a@b.com"
+    assert parse_headers(raw).auth is None
+

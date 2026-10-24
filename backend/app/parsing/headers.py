@@ -13,7 +13,10 @@ from email.utils import getaddresses
 from app.parsing.domains import registrable_domain
 
 TRUSTED_AUTHSERV_ID = "mx.google.com"
-_AUTH_RESULT = re.compile(r"\b(spf|dkim|dmarc)\s*=\s*([a-z]+)", re.IGNORECASE)
+# RFC 8601: "authserv-id; method=result (comment) property=value; ..."
+_QUOTED = re.compile(r'"(?:[^"\\]|\\.)*"')
+_COMMENT = re.compile(r"\([^()]*\)")
+_CLAUSE_RESULT = re.compile(r"^\s*(spf|dkim|dmarc)\s*=\s*([a-z]+)\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -76,9 +79,17 @@ def _trusted_auth_results(message: Message) -> dict[str, str] | None:
     if not headers:
         return None
     top = " ".join(str(headers[0]).split())
-    if not top.lower().startswith(TRUSTED_AUTHSERV_ID):
+    # Google echoes attacker-chosen text (e.g. the envelope sender) inside quoted strings and
+    # comments; drop them, then read only the "method=result" that starts each clause.
+    top = _QUOTED.sub('""', top)
+    while _COMMENT.search(top):
+        top = _COMMENT.sub(" ", top)
+    authserv_id, *clauses = top.split(";")
+    if authserv_id.strip().lower() != TRUSTED_AUTHSERV_ID:
         return None
     results: dict[str, str] = {}
-    for method, result in _AUTH_RESULT.findall(top):
-        results.setdefault(method.lower(), result.lower())
+    for clause in clauses:
+        match = _CLAUSE_RESULT.match(clause)
+        if match:
+            results.setdefault(match.group(1).lower(), match.group(2).lower())
     return results
