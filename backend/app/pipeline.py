@@ -25,6 +25,7 @@ OPTIONAL_TIMEOUT_SECONDS = 8.0  # per analyzer; they run in parallel, so 8 s tot
 async def analyze_email(request: AnalyzeRequest, settings: Settings) -> AnalyzeResponse:
     # Parsing and rules are CPU work: run them off the event loop so one heavy email can't
     # stall other requests (or health checks) on this server instance.
+    """Full analysis of one email: parse, run the rules and the optional analyzers, score."""
     ctx = await asyncio.to_thread(build_context, request)
     rules = await asyncio.to_thread(run_rules, ctx)
     if ctx.body.html_parse_failed:
@@ -56,6 +57,7 @@ def _tls_context() -> ssl.SSLContext:
 
 
 async def _guarded(name: str, api_key: str, start) -> AnalyzerResult:
+    """Runs one optional analyzer with a time limit; turns any failure into a status."""
     if not api_key:
         return AnalyzerResult(name=name, status="skipped")
     try:
@@ -68,6 +70,7 @@ async def _guarded(name: str, api_key: str, start) -> AnalyzerResult:
 
 
 def input_notices(ctx: EmailContext) -> list[str]:
+    """Warnings about the input itself: truncated, too many links, or unreadable HTML."""
     notices = []
     if ctx.input_truncated or ctx.body.text_truncated:
         notices.append("This email is very large — only the first part was analyzed.")
@@ -80,6 +83,7 @@ def input_notices(ctx: EmailContext) -> list[str]:
 
 
 def technical_details(ctx: EmailContext) -> dict:
+    """Analyst data for the 'Details' section of the card."""
     sender = ctx.headers.sender
     return {
         "from_domain": defang(sender.domain) if sender and sender.domain else "",

@@ -31,11 +31,13 @@ SYSTEM_PROMPT = (
 
 
 def build_prompt(subject: str, text: str) -> str:
+    """Wraps the email in <email> tags as data; strips any fake tags the email itself contains."""
     content = _EMAIL_TAG.sub("", f"Subject: {subject}\n\n{text}")[:MAX_EMAIL_CHARS]
     return f"<email>\n{content}\n</email>"
 
 
 def parse_reply(payload: object) -> tuple[int, str]:
+    """Reads Gemini's answer. Raises ValueError unless it is exactly the JSON we asked for."""
     try:
         text = payload["candidates"][0]["content"]["parts"][0]["text"]
         data = json.loads(text)
@@ -51,11 +53,13 @@ def parse_reply(payload: object) -> tuple[int, str]:
 
 
 def points_for(likelihood: int) -> int:
+    """Turns a 0-100 % likelihood into 0-25 points."""
     return round(likelihood / 100 * MAX_POINTS)
 
 
 async def analyze(ctx: EmailContext, api_key: str, model: str,
                   client: httpx.AsyncClient) -> AnalyzerResult:
+    """Asks Gemini how likely the email is phishing and returns the result as an AnalyzerResult."""
     if not ctx.body.text.strip() and not ctx.headers.subject.strip():
         return AnalyzerResult(name="llm", status="skipped",
                               facts=["AI check skipped: the email has no text."])
@@ -80,6 +84,7 @@ async def analyze(ctx: EmailContext, api_key: str, model: str,
 
 
 def _request_body(ctx: EmailContext) -> dict:
+    """The JSON request for Gemini: instructions, the delimited email, and strict-JSON output settings."""
     return {
         "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
         "contents": [{"role": "user",

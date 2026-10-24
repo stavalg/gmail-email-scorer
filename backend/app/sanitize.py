@@ -12,5 +12,6 @@ _UNSAFE = re.compile("[\x00-\x08\x0b-\x1f\x7f" + "".join(sorted(BIDI_CONTROL_CHA
 
 
 def clean_text(value: str, limit: int = MAX_DISPLAY_CHARS) -> str:
+    """Removes control and text-direction characters and caps the length before display."""
     value = _UNSAFE.sub("", value)
     return value if len(value) <= limit else value[: limit - 1] + "…"

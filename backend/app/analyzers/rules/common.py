@@ -7,6 +7,7 @@ from app.analyzers.rules.data import WEIGHTS
 
 @dataclass
 class RuleOutput:
+    """What one rule check returns: findings (points), facts (good news) and notices (warnings)."""
     findings: list[Finding] = field(default_factory=list)
     facts: list[str] = field(default_factory=list)
     notices: list[str] = field(default_factory=list)

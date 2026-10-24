@@ -6,6 +6,7 @@ DEGRADED_STATUSES = frozenset({"partial", "error", "timeout", "rate_limited"})
 
 @dataclass(frozen=True)
 class Finding:
+    """One reason that adds points, e.g. 'Lookalike domain' +30, with its evidence."""
     id: str
     category: str   # authentication | sender | links | content | attachments | reputation | ai
     title: str
@@ -15,6 +16,7 @@ class Finding:
 
 @dataclass
 class AnalyzerResult:
+    """What one analyzer (rules, VirusTotal, AI) returns: findings, facts, notices and its status."""
     name: str
     status: str  # ok | partial | skipped | error | timeout | rate_limited
     findings: list[Finding] = field(default_factory=list)

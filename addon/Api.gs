@@ -1,5 +1,6 @@
 /** Talks to the backend. The Google identity token proves who is calling. */
 
+/** An error with a 'kind' the error card understands: unauthorized, backend, invalid_response. */
 class AddonError extends Error {
   constructor(kind) {
     super(kind);
@@ -8,6 +9,7 @@ class AddonError extends Error {
   }
 }
 
+/** Sends the email data to the backend with the user's Google identity token; returns the checked answer. */
 function callBackend(payload) {
   const token = ScriptApp.getIdentityToken();
   if (!token) throw new AddonError('unauthorized');

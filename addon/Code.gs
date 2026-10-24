@@ -1,9 +1,11 @@
 /** Entry points called by Gmail. */
 
+/** Gmail calls this when the add-on is opened without an email selected. */
 function onHomepage() {
   return buildHomepageCard();
 }
 
+/** Gmail calls this when the user opens an email. */
 function onGmailMessageOpen() {
   return buildStartCard();
 }
@@ -14,6 +16,7 @@ function getOpenedMessage(e) {
   return GmailApp.getMessageById(e.gmail.messageId);
 }
 
+/** Runs when Analyze is clicked: collect the email, call the backend, show the result or an error. */
 function onAnalyze(e) {
   let card;
   try {

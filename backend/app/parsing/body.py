@@ -15,12 +15,14 @@ _BLOCK_TAGS = {"br", "p", "div", "tr", "li", "table", "h1", "h2", "h3"}
 
 @dataclass(frozen=True)
 class Link:
+    """A link in the email: where it really goes (href) and the text the reader sees."""
     href: str
     text: str  # visible text of the link; '' for URLs written as plain text
 
 
 @dataclass(frozen=True)
 class ParsedBody:
+    """The email body as plain text plus its links, with flags for anything cut or unreadable."""
     text: str
     links: tuple[Link, ...]
     image_count: int
@@ -30,7 +32,9 @@ class ParsedBody:
 
 
 class _HtmlCollector(HTMLParser):
+    """Walks the HTML once, collecting visible text, links and the number of images."""
     def __init__(self) -> None:
+        """Starts with nothing collected."""
         super().__init__(convert_charrefs=True)
         self.text_parts: list[str] = []
         self.links: list[Link] = []
@@ -40,6 +44,7 @@ class _HtmlCollector(HTMLParser):
         self._link_text: list[str] = []
 
     def handle_starttag(self, tag, attrs):
+        """Called for each opening tag: skips scripts/styles, counts images, starts links."""
         if tag in ("script", "style"):
             self._skip_depth += 1
         elif tag == "img":
@@ -51,12 +56,14 @@ class _HtmlCollector(HTMLParser):
             self.text_parts.append("\n")
 
     def handle_endtag(self, tag):
+        """Called for each closing tag: ends script/style skipping and finishes links."""
         if tag in ("script", "style") and self._skip_depth:
             self._skip_depth -= 1
         elif tag == "a":
             self._finish_link()
 
     def handle_data(self, data):
+        """Called for each piece of text: keeps visible text and the current link's text."""
         if self._skip_depth:
             return
         self.text_parts.append(data)
@@ -64,10 +71,12 @@ class _HtmlCollector(HTMLParser):
             self._link_text.append(data)
 
     def close(self):
+        """Finishes parsing and saves a link left open at the end."""
         super().close()
         self._finish_link()
 
     def _finish_link(self):
+        """Saves the link being read (if any) with its visible text."""
         if self._href is not None:
             text = " ".join("".join(self._link_text).split())
             self.links.append(Link(href=self._href, text=text))
@@ -76,6 +85,7 @@ class _HtmlCollector(HTMLParser):
 
 
 def parse_body(body_html: str, body_text: str) -> ParsedBody:
+    """Turns the email body into plain text and a list of links (links from the whole body)."""
     collector = _HtmlCollector()
     html_parse_failed = False
     try:

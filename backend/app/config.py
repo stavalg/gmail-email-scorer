@@ -6,6 +6,7 @@ from functools import lru_cache
 
 @dataclass(frozen=True)
 class Settings:
+    """All runtime settings, read from environment variables (API keys come from Secret Manager)."""
     oauth_client_id: str
     allowed_emails: frozenset[str]
     dev_skip_auth: bool
@@ -15,6 +16,7 @@ class Settings:
 
 
 def _load() -> Settings:
+    """Reads the settings from the environment; refuses the local-only auth bypass on Cloud Run."""
     dev_skip_auth = os.environ.get("DEV_SKIP_AUTH", "").lower() == "true"
     if dev_skip_auth and os.environ.get("K_SERVICE"):
         # Cloud Run always sets K_SERVICE: the local-only bypass must never run there.
@@ -33,4 +35,5 @@ def _load() -> Settings:
 
 @lru_cache
 def get_settings() -> Settings:
+    """The settings, read once and then reused."""
     return _load()

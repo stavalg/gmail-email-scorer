@@ -8,6 +8,7 @@ from app.parsing.headers import ParsedHeaders, parse_headers
 
 @dataclass(frozen=True)
 class EmailContext:
+    """The email, parsed once (headers, body, attachments) and shared by every analyzer."""
     headers: ParsedHeaders
     body: ParsedBody
     attachments: tuple[AttachmentIn, ...]
@@ -15,6 +16,7 @@ class EmailContext:
 
 
 def build_context(request: AnalyzeRequest) -> EmailContext:
+    """Parses a request into an EmailContext."""
     return EmailContext(
         headers=parse_headers(request.headers_raw),
         body=parse_body(request.body_html, request.body_text),

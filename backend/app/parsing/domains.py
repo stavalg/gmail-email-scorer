@@ -13,6 +13,7 @@ _WEB_PREFIX = re.compile(r"^(https?:|[\\/]{2})", re.IGNORECASE)
 
 
 def _normalize(host: str) -> str:
+    """Lowercase, trimmed, without a trailing dot."""
     return host.strip().lower().rstrip(".")
 
 
@@ -28,6 +29,7 @@ def split_host(host: str) -> tuple[str, str, str]:
 
 
 def is_ip(host: str) -> bool:
+    """True if the host is a raw IP address instead of a domain name."""
     try:
         ipaddress.ip_address(host.strip("[]"))
         return True

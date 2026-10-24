@@ -23,6 +23,7 @@ function truncate(value, max) {
   return { text: text.slice(0, end), cut: true };
 }
 
+/** Builds the request for the backend: headers, body and attachment metadata, cut to safe sizes. */
 function extractEmail(message) {
   let truncated = false;
   const cut = (value, max) => {
@@ -48,6 +49,7 @@ function extractEmail(message) {
   return payload;
 }
 
+/** Name, type, size and SHA-256 fingerprint of one attachment (files over 10 MB are not hashed). */
 function describeAttachment(attachment) {
   const size = attachment.getSize();
   return {
@@ -59,6 +61,7 @@ function describeAttachment(attachment) {
   };
 }
 
+/** The SHA-256 fingerprint of a file, as hex text. */
 function sha256Hex(bytes) {
   const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes);
   return digest.map((b) => ((b + 256) % 256).toString(16).padStart(2, '0')).join('');

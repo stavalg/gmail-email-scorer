@@ -45,6 +45,7 @@ def malicious_vendor_count(payload: object) -> int:
 
 
 async def analyze(ctx: EmailContext, api_key: str, client: httpx.AsyncClient) -> AnalyzerResult:
+    """Looks up attachment hashes and link/sender domains on VirusTotal (at most 3 per email)."""
     targets, total = pick_targets(ctx)
     result = AnalyzerResult(name="virustotal", status="ok", checked=0, total=total)
     lookups = []
@@ -75,4 +76,5 @@ async def analyze(ctx: EmailContext, api_key: str, client: httpx.AsyncClient) ->
 
 
 def _label(kind: str, value: str) -> str:
+    """How a looked-up item is shown to the user (domains are defanged)."""
     return f"Attachment (SHA-256 {value[:12]}…)" if kind == "files" else defang(value)

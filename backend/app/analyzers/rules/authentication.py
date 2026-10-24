@@ -14,6 +14,7 @@ MEANING = {
 
 
 def check(ctx: EmailContext) -> RuleOutput:
+    """Rule: turns Google's SPF/DKIM/DMARC results into points (failures) or facts (passes)."""
     out = RuleOutput()
     auth = ctx.headers.auth
     if auth is None:

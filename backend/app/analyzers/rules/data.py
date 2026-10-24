@@ -49,6 +49,7 @@ validate_weights(WEIGHTS)  # a bad edit stops the app from starting instead of s
 
 @dataclass(frozen=True)
 class Brand:
+    """A brand we protect: how it appears in sender names, in domains, and its real domains."""
     name: str                   # shown to the user
     keywords: tuple[str, ...]   # phrases matched as whole words in sender NAMES; specific enough
                                 # that people and newsletters don't match ("chase bank", not "chase")

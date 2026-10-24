@@ -9,6 +9,7 @@ MOSTLY_IMAGES_MAX_TEXT = 200
 
 
 def _compile(phrases):
+    """Prepares whole-word, case-insensitive patterns for a list of phrases."""
     return [(phrase, re.compile(rf"\b{re.escape(phrase)}\b")) for phrase in phrases]
 
 
@@ -17,6 +18,7 @@ _CREDENTIALS = _compile(CREDENTIAL_PHRASES)
 
 
 def check(ctx: EmailContext) -> RuleOutput:
+    """Rule: flags urgency/threat wording and requests for passwords or payment details."""
     out = RuleOutput()
     text = " ".join(f"{ctx.headers.subject}\n{ctx.body.text}".lower().split())
 
@@ -39,5 +41,6 @@ def check(ctx: EmailContext) -> RuleOutput:
 
 
 def _describe(found: list[str]) -> str:
+    """Evidence text: the first matched phrase and how many more were found."""
     more = f" (+{len(found) - 1} more)" if len(found) > 1 else ""
     return f'Phrases like "{found[0]}"{more}.'

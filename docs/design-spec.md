@@ -1,7 +1,7 @@
 # Gmail Malicious Email Scorer — Design Spec
 
 **Date:** 2026-10-23
-**Status:** Approved
+**Status:** Implemented. Changes made during the build are listed at the top of [implementation-plan.md](implementation-plan.md); the [README](../README.md) describes the final system.
 **Time budget:** ~15 hours (≈4–5h on day 1, ≈10h on day 2)
 
 ---
@@ -430,7 +430,7 @@ the current-message scopes, the add-on can call `getRawContent()` (for headers) 
 │   ├── Dockerfile
 │   └── .env.example
 └── docs/
-    ├── superpowers/specs/   # this spec
+    ├── design-spec.md       # this spec
     └── architecture.png|svg # diagram for the README
 ```
 

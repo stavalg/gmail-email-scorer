@@ -34,17 +34,20 @@ async def limit_request_size(request: Request, call_next):
 @app.exception_handler(RequestValidationError)
 async def invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
     # FastAPI's default error message repeats the input back; we never echo email content.
+    """Rejects malformed requests with a generic 422 (never echoes the email back)."""
     return JSONResponse({"error": "invalid_request"}, status_code=422)
 
 
 # Not "/healthz": Cloud Run reserves URL paths ending in "z".
 @app.get("/health")
 def health() -> dict:
+    """Liveness check used by deployment and monitoring."""
     return {"status": "ok"}
 
 
 @app.post("/v1/analyze", response_model=AnalyzeResponse)
 async def analyze(request: AnalyzeRequest, user: str = Depends(require_user)) -> AnalyzeResponse:
+    """Main endpoint: analyzes one email and returns its score, verdict and evidence."""
     started = time.perf_counter()
     try:
         result = await analyze_email(request, get_settings())

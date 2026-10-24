@@ -1,16 +1,39 @@
 # Gmail Malicious Email Scorer Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A Gmail Add-on that, on request, scores the opened email 0–100, gives a Safe / Suspicious / Malicious verdict, explains why, and tells the user what to do — backed by a Python service on Cloud Run.
 
 **Architecture:** A thin Apps Script add-on collects minimal email data (headers, body, attachment metadata + SHA-256), gets a Google identity token and POSTs to a FastAPI backend. The backend verifies the token, validates input, runs isolated rule checks plus optional time-boxed VirusTotal / Gemini analyzers, and combines everything into one explainable score. The backend is stateless.
 
-**Tech Stack:** Google Apps Script (V8) + CardService, `clasp` 2.4.2; Python 3.12, FastAPI, Pydantic v2, httpx, google-auth, tldextract, pytest; Google Cloud Run, Cloud Build, Artifact Registry, Secret Manager.
+**Tech Stack:** Google Apps Script (V8) + CardService, `clasp` 2.4.2; Python 3.14, FastAPI, Pydantic v2, httpx, google-auth, tldextract, pytest; Google Cloud Run, Cloud Build, Artifact Registry, Secret Manager.
 
-**Spec:** `docs/superpowers/specs/2026-10-23-gmail-malicious-email-scorer-design.md`
+**Spec:** `docs/design-spec.md`
 
-## How to read this plan (for the student)
+## What changed during implementation
+
+This is the original build plan. Every task was completed; the changes below were made while
+building, each covered by tests. The [README](../README.md) describes the final system.
+
+| Area | Planned | Built | Why |
+|---|---|---|---|
+| Result card | advice, all sections visible, disclaimer | verdict + colored score bar, one-line summary, collapsible **Why?** and **Details**, no advice/disclaimer | readable at a glance (user feedback) |
+| Health endpoint | `/healthz` | `/health` | Cloud Run reserves paths ending in `z` |
+| Python | 3.12 | **3.14.7** | 3.12's HTML parser crashes / is quadratic on hostile HTML |
+| Dependencies | direct pins | every package locked, all upgraded | `pip-audit` found 9 published vulnerabilities |
+| AI model | `gemini-2.5-flash`, `thinkingBudget: 0` | `gemini-3.1-flash-lite`, `thinkingLevel: minimal` | 2.5 unavailable to new keys; fastest measured (1–4 s) |
+| AI below 30 % | small points | shown as a fact | "5 % likely" is not a warning sign |
+| Timeouts | 5 s per wait, 8 s cap | 6 s, 8 s | tuned from Cloud Run latency logs |
+| Order | 16 → 17 → 18 → 19 | 18 → 19 → 16 → 17 | graded deliverables first |
+
+Added after an independent code review (each with a regression test):
+Authentication-Results read clause by clause with an exact authserv-id; link hosts resolved like
+browsers (`\` = `/`); unreadable HTML falls back to plain text and parsing runs off the event
+loop; "Sender verified" only when DMARC passed; brand names need specific phrases and regional
+brand domains are allowed; 10 s clock-skew tolerance for tokens; score-bar boundaries; emoji-safe
+truncation; HTTP client URL logging disabled (privacy). Final test count: 170 (the per-task counts
+below are one higher than actual from Task 6 on, a counting slip in the plan).
+
+## How to read this plan
 
 - Every task ends with a **✅ Checkpoint**: a command you run (or a thing you click) and what you should see. Don't start the next task until the checkpoint passes.
 - Python tasks follow **test first**: write a test, watch it fail, write the code, watch it pass. The failing run proves the test really tests something.
@@ -1022,7 +1045,7 @@ Expected: the repo on GitHub shows `addon/`, `backend/`, `docs/` and **no** `env
 **In plain words:** we describe exactly what a valid request looks like. Anything else (unknown fields, too long, wrong format) is rejected *before* our code touches it, and the error never echoes the email back.
 
 **Files:**
-- Create: `backend/app/models.py`, `backend/tests/test_models_api.py`
+- Create: `backend/app/models.py`, `backend/tests/test_request_validation.py`
 - Modify: `backend/app/main.py`, `backend/tests/conftest.py`
 
 **Interfaces:**
@@ -1047,7 +1070,7 @@ def authed_client():
 ```
 (Move the new imports to the top of the file.)
 
-- [ ] **Step 2: Write the failing tests** — `backend/tests/test_models_api.py`
+- [ ] **Step 2: Write the failing tests** — `backend/tests/test_request_validation.py`
 
 ```python
 from app.models import MAX_ATTACHMENTS, MAX_HEADERS_CHARS, MAX_REQUEST_BYTES
@@ -1105,7 +1128,7 @@ def test_oversized_request_is_rejected_before_parsing(authed_client):
 
 - [ ] **Step 3: Run and watch them fail**
 
-Run (in `backend/`): `.venv/Scripts/python -m pytest -q tests/test_models_api.py`
+Run (in `backend/`): `.venv/Scripts/python -m pytest -q tests/test_request_validation.py`
 Expected: FAIL — `ModuleNotFoundError: No module named 'app.models'`
 
 - [ ] **Step 4: Write the models** — `backend/app/models.py`

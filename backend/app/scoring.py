@@ -19,6 +19,7 @@ SUMMARIES = {
 
 
 def verdict_for(score: int) -> str:
+    """Safe below 30, Suspicious 30-69, Malicious from 70."""
     if score >= MALICIOUS_MIN:
         return "malicious"
     if score >= SUSPICIOUS_MIN:
@@ -28,6 +29,7 @@ def verdict_for(score: int) -> str:
 
 def score_results(results: list[AnalyzerResult], notices: Iterable[str] = (),
                   details: dict | None = None) -> AnalyzeResponse:
+    """Combines all analyzer results into the final score, verdict and card content."""
     findings = sorted((f for r in results for f in r.findings), key=lambda f: f.points, reverse=True)
     score = min(MAX_SCORE, sum(f.points for f in findings))
     if any(r.known_malicious for r in results):

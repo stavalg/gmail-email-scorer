@@ -22,6 +22,7 @@ def verify_google_token(token: str, audience: str) -> dict:
 
 
 def require_user(authorization: str = Header(default="")) -> str:
+    """FastAPI dependency: lets a request through only with a valid Google token for an allowed email."""
     settings = get_settings()
     if settings.dev_skip_auth:
         return "dev@localhost"

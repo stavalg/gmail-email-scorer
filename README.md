@@ -106,15 +106,21 @@ addon/                     Gmail add-on (Apps Script)
 backend/app/
   main.py                  HTTP layer: request size limit, safe errors, /v1/analyze, /health
   auth.py                  Google identity-token verification + email allowlist
+  config.py                settings from environment variables (keys come from Secret Manager)
   models.py                strict request/response schemas and size limits
-  pipeline.py              parse once → run analyzers → score
+  context.py               the email parsed once, shared by all analyzers
+  pipeline.py              parse → run rules + optional analyzers in parallel → score
   scoring.py               score, verdict, notices
+  sanitize.py              removes invisible/control characters before display
   parsing/                 headers, body (text + links), domains — text only, never fetched
   analyzers/rules/         authentication, sender, links, content, attachments + runner
   analyzers/rules/data.py  every weight, brand and indicator list in one place
+  analyzers/virustotal.py  reputation lookups (domains and file hashes only)
+  analyzers/llm.py         AI assessment with Gemini (bounded, injection-resistant)
 backend/tests/             170 tests (unit, API, edge cases)
 backend/samples/           sample requests for curl
 scripts/check_addon.js     offline checks of the add-on's pure functions
+docs/                      design spec, implementation plan, demo emails, screenshots
 ```
 
 ## 3. How an email is scored
@@ -212,9 +218,8 @@ email address. No mailbox-wide read, no modify permissions.
 - API keys live in **Google Secret Manager** and reach Cloud Run as environment variables;
   never in code, Git or logs. `env.yaml` (allowlist, client ID) is git-ignored.
 - The container runs as a **non-root user**; API documentation pages are disabled.
-- **Every runtime package is pinned**, including indirect ones. `pip-audit` runs in CI on every
-  push. (It caught 9 published vulnerabilities in `requests`/`starlette` during development —
-  all upgraded.)
+- **Every runtime package is pinned**, including indirect ones, and `pip-audit` checks them for
+  published vulnerabilities in CI on every push.
 - Cloud Run is capped at **2 instances** and a **$1 budget alert** is set, so abuse can't create a bill.
 
 ## 5. Privacy
@@ -238,9 +243,8 @@ A security tool that crashes and shows a green "Safe" is worse than no tool.
   others still run, coverage shows `partial`, and a Safe verdict gets the visible warning
   *"Some checks did not complete — treat 'Safe' with caution."*
 - **Unreadable HTML** never stops the analysis: whatever was read is kept, the plain text is
-  analyzed instead, coverage shows `partial`, and the card says so. (Python 3.12's HTML parser
-  crashed on `<![<![` and took 28 s on 500 KB of `</`; the project pins Python 3.14.7, where both
-  are fixed, and keeps the fallback anyway.)
+  analyzed instead, coverage shows `partial`, and the card says so. The project requires
+  Python 3.14.7+, whose HTML parser fixes known crash and slowdown bugs on hostile input.
 - **Total failure** returns an error card with Retry — **never a score**.
 - **Optional analyzers degrade gracefully:** VirusTotal and the AI run in parallel, each with a
   6 s network timeout and an 8 s hard cap (Gmail allows ~30 s; our budget is 15 s). Slow, down or rate-limited →
@@ -319,7 +323,7 @@ Then in the Apps Script editor (`clasp open`):
    `deploy.sh` already maps both secrets (`SECRETS=`); remove an entry there to disable that
    analyzer, then run `./deploy.sh` again.
 
-> The health endpoint is `/health`, not `/healthz`: Cloud Run reserves paths ending in `z`.
+> Health check: `GET /health` (not `/healthz` — Cloud Run reserves paths ending in `z`).
 
 ## 8. Testing
 
@@ -369,8 +373,8 @@ control characters, mixed scripts, malformed headers): all handled without an er
 - **Gemini free tier latency varies:** most answers take 1–4 s, but some take 18–40 s. Those hit the
   8 s cap and the card shows `AI: timed out` — the verdict still comes from the other layers.
   A paid tier would make this reliable.
-- **AI models are retired over time:** `gemini-2.5-flash` stopped accepting new keys during development;
-  the model is one setting (`GEMINI_MODEL`), currently `gemini-3.1-flash-lite` (fastest measured).
+- **AI models are retired over time.** The model is one setting (`GEMINI_MODEL`, default
+  `gemini-3.1-flash-lite`), so replacing a retired model needs no code change.
 - **Single-user allowlist;** not packaged for the Google Workspace Marketplace.
 
 ## 10. Future work
@@ -397,10 +401,10 @@ control characters, mixed scripts, malformed headers): all handled without an er
 | VirusTotal input | full URLs · domains + hashes | **Domains + hashes** | Full URLs can contain private tokens |
 | AI influence | decide verdict · bounded contribution | **≤ +25, add-only** | A successful prompt injection still can't produce "Safe" |
 | AI model | gemini-3.8-flash · flash-lite variants | **gemini-3.1-flash-lite**, minimal thinking | Measured 1–4 s vs 10–12 s (or overloaded) for the others on the free tier |
-| External-service timeouts | 5 s / 8 s · 10 s / 12 s · 6 s / 8 s | **6 s per wait, 8 s cap** | Tuned from Cloud Run logs: every successful AI answer took 1.2–3.8 s and none arrived between 5 and 10 s, so waiting 10 s only delayed the card |
+| External-service timeouts | shorter · longer waits | **6 s per wait, 8 s cap** | From Cloud Run logs: successful AI answers took 1.2–3.8 s and none arrived between 5 and 10 s, so a longer wait would only delay the card |
 | Card layout | everything visible · progressive disclosure | **Progressive disclosure** | Readable at a glance by a normal user; full evidence one tap away |
 | HTML size limit | 100 KB · 500 KB | **500 KB, links from all of it** | Defeats padding while keeping requests small |
 | Dependencies | direct pins · full lock + audit | **Full lock + `pip-audit` in CI** | Reproducible builds; new CVEs are caught automatically |
 
-The full design spec and implementation plan are in
-[`docs/superpowers/`](docs/superpowers/).
+More detail: the [design spec](docs/design-spec.md), the
+[implementation plan](docs/implementation-plan.md) and the [demo emails](docs/demo-emails.md).

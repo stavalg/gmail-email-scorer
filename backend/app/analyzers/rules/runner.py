@@ -21,6 +21,7 @@ CHECKS: tuple[RuleCheck, ...] = (
 
 
 def run_rules(ctx: EmailContext, checks: Sequence[RuleCheck] | None = None) -> AnalyzerResult:
+    """Runs every rule check; a check that crashes is reported as 'partial', never ignored."""
     result = AnalyzerResult(name="rules", status="ok")
     failed = 0
     for check in CHECKS if checks is None else checks:

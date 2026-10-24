@@ -17,6 +17,7 @@ Verdict = Literal["safe", "suspicious", "malicious"]
 
 
 class AttachmentIn(BaseModel):
+    """Attachment metadata sent by the add-on (the file itself never leaves Gmail)."""
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: str = Field(default="", max_length=1024)
@@ -26,6 +27,7 @@ class AttachmentIn(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
+    """What the add-on sends for one email. Unknown fields and oversized values are rejected."""
     model_config = ConfigDict(extra="forbid")
 
     headers_raw: str = Field(default="", max_length=MAX_HEADERS_CHARS)
@@ -36,6 +38,7 @@ class AnalyzeRequest(BaseModel):
 
 
 class FindingOut(BaseModel):
+    """One reason as shown on the card."""
     id: str
     category: str
     title: str
@@ -44,12 +47,14 @@ class FindingOut(BaseModel):
 
 
 class CoverageItem(BaseModel):
+    """Whether an analyzer ran (ok, partial, skipped, error, timeout, rate_limited)."""
     status: str
     checked: int | None = None
     total: int | None = None
 
 
 class AnalyzeResponse(BaseModel):
+    """Everything the card shows: score, verdict, reasons, facts, coverage and warnings."""
     score: int = Field(ge=0, le=100)
     verdict: Verdict
     summary: str

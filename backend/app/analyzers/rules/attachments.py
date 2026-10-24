@@ -24,6 +24,7 @@ TITLES = {
 
 
 def visible_name(name: str) -> str:
+    """The file name without invisible text-direction characters (what the user actually sees)."""
     return "".join(char for char in name if char not in BIDI_CONTROL_CHARS)
 
 
@@ -34,6 +35,7 @@ def extensions(name: str) -> list[str]:
 
 
 def check(ctx: EmailContext) -> RuleOutput:
+    """Rule: flags risky attachments (double extensions, executables, HTML, macros, archives)."""
     hits: dict[str, list[str]] = defaultdict(list)
     large = 0
     for attachment in ctx.attachments:
@@ -55,6 +57,7 @@ def check(ctx: EmailContext) -> RuleOutput:
 
 
 def _inspect(attachment: AttachmentIn, hits: dict[str, list[str]]) -> None:
+    """Records which attachment signals one file triggers."""
     shown = visible_name(attachment.name).strip() or "(no name)"
     if any(char in BIDI_CONTROL_CHARS for char in attachment.name):
         hits["disguised_filename"].append(shown)

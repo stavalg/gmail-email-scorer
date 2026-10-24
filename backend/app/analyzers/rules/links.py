@@ -24,6 +24,7 @@ TITLES = {
 
 
 def check(ctx: EmailContext) -> RuleOutput:
+    """Rule: flags deceptive links (mismatched text, hidden brands, IPs, shorteners, ...)."""
     hits: dict[str, list[str]] = defaultdict(list)  # finding id -> one example per link
     for link in ctx.body.links:
         _inspect(link, hits)
@@ -37,6 +38,7 @@ def check(ctx: EmailContext) -> RuleOutput:
 
 
 def _inspect(link: Link, hits: dict[str, list[str]]) -> None:
+    """Records which link signals one link triggers."""
     scheme, separator, _ = browser_href(link.href).partition(":")  # also catches java<TAB>script:
     if separator and scheme.lower() in SCRIPT_SCHEMES:
         hits["script_link"].append(f"{scheme.lower()}: link")

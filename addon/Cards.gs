@@ -15,6 +15,7 @@ const ERROR_MESSAGES = {
   invalid_response: 'The analysis service returned an unexpected answer.',
 };
 
+/** Makes any text safe to show on a card: tags and quotes are displayed, never interpreted. */
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -24,6 +25,7 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+/** Shown when no email is open. */
 function buildHomepageCard() {
   return CardService.newCardBuilder()
     .setHeader(CardService.newCardHeader().setTitle('Email Security Check'))
@@ -31,6 +33,7 @@ function buildHomepageCard() {
     .build();
 }
 
+/** Shown when an email is opened: explains the tool and offers the Analyze button. */
 function buildStartCard() {
   return CardService.newCardBuilder()
     .setHeader(CardService.newCardHeader().setTitle('Email Security Check'))
@@ -91,6 +94,7 @@ function scoreBar(score) {
   return '<font color="#9aa0a6">0 </font>' + bar + '<font color="#9aa0a6"> 100</font>';
 }
 
+/** Shown when the analysis could not be completed; offers Retry. */
 function buildErrorCard(kind) {
   const message = ERROR_MESSAGES[kind] || "Couldn't reach the analysis service. Please try again.";
   return CardService.newCardBuilder()
@@ -99,12 +103,14 @@ function buildErrorCard(kind) {
     .build();
 }
 
+/** A card section with an optional header and lines of (already escaped) text. */
 function textSection(header, lines) {
   const section = CardService.newCardSection();
   if (header) section.setHeader(header);
   return section.addWidget(CardService.newTextParagraph().setText(lines.join('<br>')));
 }
 
+/** A button that runs the analysis (used for Analyze, Analyze again and Retry). */
 function analyzeButton(label) {
   return CardService.newTextButton()
     .setText(label)
@@ -127,6 +133,7 @@ function findingsSection(findings) {
   return section;
 }
 
+/** One 'Details' line saying whether an analyzer ran, e.g. 'VirusTotal: ✓ (2 of 2 checked)'. */
 function describeCoverage(name, item) {
   let text = (COVERAGE_LABELS[name] || name) + ': ' + (STATUS_TEXT[item.status] || item.status);
   if (item.checked !== null && item.checked !== undefined && item.total) {

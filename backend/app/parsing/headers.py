@@ -21,6 +21,7 @@ _CLAUSE_RESULT = re.compile(r"^\s*(spf|dkim|dmarc)\s*=\s*([a-z]+)\b", re.IGNOREC
 
 @dataclass(frozen=True)
 class Address:
+    """One email address: the display name, the address and its registrable domain."""
     display_name: str
     address: str  # lowercased
     domain: str   # registrable domain, '' if unknown
@@ -28,6 +29,7 @@ class Address:
 
 @dataclass(frozen=True)
 class ParsedHeaders:
+    """What we use from the headers: sender, Reply-To, subject and Google's auth results."""
     sender: Address | None
     reply_to: Address | None
     subject: str
@@ -35,6 +37,7 @@ class ParsedHeaders:
 
 
 def parse_headers(raw: str) -> ParsedHeaders:
+    """Reads From, Reply-To, Subject and the trusted Authentication-Results header."""
     message = HeaderParser(policy=default_policy).parsestr(raw)
     return ParsedHeaders(
         sender=_first_address(message, "From"),
@@ -45,6 +48,7 @@ def parse_headers(raw: str) -> ParsedHeaders:
 
 
 def _header_text(message: Message, name: str) -> str:
+    """A header's decoded text, or '' if it is missing or malformed."""
     try:
         value = message.get(name)
         return str(value).strip() if value is not None else ""
@@ -53,6 +57,7 @@ def _header_text(message: Message, name: str) -> str:
 
 
 def _first_address(message: Message, name: str) -> Address | None:
+    """The first email address in a header, or None if it has no valid address."""
     value = _header_text(message, name)
     if not value:
         return None
