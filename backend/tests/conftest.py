@@ -1,6 +1,9 @@
 import pytest
+from fastapi.testclient import TestClient
 
+from app.auth import require_user
 from app.config import get_settings
+from app.main import app
 
 ENV_KEYS = (
     "OAUTH_CLIENT_ID", "ALLOWED_EMAILS", "DEV_SKIP_AUTH",
@@ -27,3 +30,11 @@ def set_env(monkeypatch):
             monkeypatch.setenv(key, value)
         get_settings.cache_clear()
     return _set
+
+
+@pytest.fixture
+def authed_client():
+    """A client that skips token checks (auth itself is tested in test_auth.py)."""
+    app.dependency_overrides[require_user] = lambda: "me@gmail.com"
+    yield TestClient(app)
+    app.dependency_overrides.clear()
