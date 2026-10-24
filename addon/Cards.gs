@@ -18,7 +18,7 @@ function buildHomepageCard() {
 }
 
 function buildStartCard() {
-  const analyze = CardService.newAction().setFunctionName('onProbe');
+  const analyze = CardService.newAction().setFunctionName('onAnalyze');
   return CardService.newCardBuilder()
     .setHeader(CardService.newCardHeader().setTitle('Email Security Check'))
     .addSection(CardService.newCardSection()
@@ -30,5 +30,32 @@ function buildStartCard() {
         .setText('Analyze this email')
         .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
         .setOnClickAction(analyze)))
+    .build();
+}
+
+// TEMPORARY (replaced in Task 15): shows the stub answer.
+function buildResultCard(result) {
+  return CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle('Result (stub)'))
+    .addSection(CardService.newCardSection()
+      .addWidget(CardService.newTextParagraph().setText(
+        escapeHtml(result.verdict) + ' · ' + escapeHtml(result.score) + '<br>' + escapeHtml(result.summary))))
+    .build();
+}
+
+const ERROR_MESSAGES = {
+  unauthorized: "You're not authorized to use this service.",
+  invalid_response: 'The analysis service returned an unexpected answer.',
+};
+
+function buildErrorCard(kind) {
+  const message = ERROR_MESSAGES[kind] || "Couldn't reach the analysis service. Please try again.";
+  return CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle('Email Security Check'))
+    .addSection(CardService.newCardSection()
+      .addWidget(CardService.newTextParagraph().setText('⚠️ ' + escapeHtml(message)))
+      .addWidget(CardService.newTextButton()
+        .setText('Retry')
+        .setOnClickAction(CardService.newAction().setFunctionName('onAnalyze'))))
     .build();
 }
