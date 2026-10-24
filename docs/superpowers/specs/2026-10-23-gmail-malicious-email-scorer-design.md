@@ -1,7 +1,7 @@
 # Gmail Malicious Email Scorer — Design Spec
 
 **Date:** 2026-10-23
-**Status:** Draft, awaiting review
+**Status:** Approved
 **Time budget:** ~15 hours (≈4–5h on day 1, ≈10h on day 2)
 
 ---
@@ -195,11 +195,18 @@ the count. Points are configured in one file (`config.py` / weights table).
     "virustotal": {"status": "ok", "checked": 3, "total": 5},
     "llm": {"status": "timeout"}
   },
+  "notices": ["Email was very large — only the first part of the text was analyzed."],
   "details": {"from_domain": "...", "auth_results": {"spf": "pass", "dkim": "pass", "dmarc": "fail"}, "attachment_hashes": ["..."]}
 }
 ```
 
 Findings are sorted by points, highest first. Advice text is chosen by verdict on the backend.
+`notices` carries truncation, partial-coverage and "Safe with caution" warnings (§6A).
+
+**Evidence formatting:**
+- Evidence strings are capped at 200 characters.
+- URLs and domains in evidence are **defanged** (`hxxp://evil[.]com`), the standard analyst
+  convention, so a malicious address shown on the card is never clickable.
 
 ## 5. Security design
 
@@ -363,6 +370,35 @@ storage). Each is a conscious security/privacy trade-off.
 | Repeated clicks | Harmless (stateless) |
 | Gmail mobile | Cards supported; tested if time allows |
 
+## 6B. Environment and setup prerequisites
+
+Checked on the development laptop (Windows 11):
+
+| Tool | Status | Action |
+|---|---|---|
+| Python | Only 3.15 **beta** via `py` | Install **Python 3.12** (stable; libraries such as pydantic may lack 3.15-beta builds). Cloud Run image also uses 3.12. |
+| Node.js / npm | v24 installed | Used only to install `clasp` |
+| `clasp` | Missing | `npm install -g @google/clasp` |
+| `gcloud` CLI | Missing | Install Google Cloud SDK |
+| Docker | Missing | Not needed — Cloud Build builds the image from source |
+
+Google-side setup (one time):
+
+1. Create a Google Cloud project; enable billing with a $1 budget alert; enable Cloud Run,
+   Cloud Build, Artifact Registry and Secret Manager APIs.
+2. Configure the **OAuth consent screen** (External, Testing mode, add the demo Gmail as a
+   test user).
+3. Enable the Apps Script API in the user settings at script.google.com (required by `clasp`).
+4. Link the Apps Script project to the Cloud project (Project Settings → change GCP project), so
+   the identity token's audience is a known OAuth client ID.
+5. Install the add-on via **Deploy → Test deployments → Install** (no Marketplace publishing).
+
+**Early verification (first build step, highest risk):** confirm in a real Gmail that, with only
+the current-message scopes, the add-on can call `getRawContent()` (for headers) and
+`ScriptApp.getIdentityToken()`. If either fails, adjust the design before building further.
+
+**Optional hygiene (if time allows):** a GitHub Actions workflow that runs `pytest` on every push.
+
 ## 7. Repository structure
 
 ```
@@ -444,7 +480,7 @@ timeouts), `google-auth` (token verification), `tldextract` (with bundled suffix
 
 | Day | Step | Est. |
 |---|---|---|
-| 1 | Google Cloud project, budget alert, git repo | 0.5h |
+| 1 | Install tools (Python 3.12, gcloud, clasp), Google Cloud project, budget alert, consent screen | 1h |
 | 1 | Minimal add-on ("Analyze" card) running in Gmail via test deployment | 1h |
 | 1 | Minimal backend on Cloud Run + ID-token auth; add-on → backend round trip | 1.5h |
 | 2 | Parsing + rules analyzer + scoring, with tests | 3h |
