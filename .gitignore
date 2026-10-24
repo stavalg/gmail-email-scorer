@@ -18,3 +18,8 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# Backend local config (contains your email / client ID)
+backend/env.yaml
+# clasp project link (personal script ID)
+addon/.clasp.json
