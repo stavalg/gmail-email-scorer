@@ -1,5 +1,6 @@
 import time
 
+import app.parsing.body as body_module
 from app.parsing.body import MAX_ANALYZED_TEXT_CHARS, MAX_LINKS, Link, parse_body
 
 
@@ -61,6 +62,25 @@ def test_counts_images():
 def test_empty_body():
     body = parse_body("", "")
     assert body.text == "" and body.links == () and not body.text_truncated
+
+
+def test_html_parser_crash_degrades_to_plain_text(monkeypatch):
+    # Older Pythons' HTMLParser raises on inputs like "<![<![": never let that kill the analysis.
+    def crash(self, data):
+        raise AssertionError("parser bug")
+    monkeypatch.setattr(body_module._HtmlCollector, "feed", crash)
+    body = parse_body("<p>anything</p>", "plain fallback https://evil.xyz/x")
+    assert body.html_parse_failed
+    assert body.text == "plain fallback https://evil.xyz/x"
+    assert Link(href="https://evil.xyz/x", text="") in body.links
+
+
+def test_known_pathological_html_is_fast():
+    # CPython's HTMLParser was quadratic on these (28 s on 3.12.10); fixed in the Python we pin.
+    for html in ("</" * 250_000, "<![<![ hello" * 1000, "<!--" * 125_000):
+        started = time.perf_counter()
+        parse_body(html, "")
+        assert time.perf_counter() - started < 2, html[:12]
 
 
 def test_huge_malformed_html_is_fast_and_safe():

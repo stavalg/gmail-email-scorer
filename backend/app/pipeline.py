@@ -23,8 +23,13 @@ OPTIONAL_TIMEOUT_SECONDS = 12.0  # per analyzer; they run in parallel, so 12 s t
 
 
 async def analyze_email(request: AnalyzeRequest, settings: Settings) -> AnalyzeResponse:
-    ctx = build_context(request)
-    results = [run_rules(ctx), *await run_optional_analyzers(ctx, settings)]
+    # Parsing and rules are CPU work: run them off the event loop so one heavy email can't
+    # stall other requests (or health checks) on this server instance.
+    ctx = await asyncio.to_thread(build_context, request)
+    rules = await asyncio.to_thread(run_rules, ctx)
+    if ctx.body.html_parse_failed:
+        rules.status = "partial"  # the rules only saw part of the email: never a silent "Safe"
+    results = [rules, *await run_optional_analyzers(ctx, settings)]
     return score_results(results, input_notices(ctx), technical_details(ctx))
 
 
@@ -68,6 +73,9 @@ def input_notices(ctx: EmailContext) -> list[str]:
         notices.append("This email is very large — only the first part was analyzed.")
     if ctx.body.links_truncated:
         notices.append("Only the first 200 links were checked.")
+    if ctx.body.html_parse_failed:
+        notices.append("Part of this email's formatting could not be read; "
+                       "its plain text was analyzed instead.")
     return notices
 
 

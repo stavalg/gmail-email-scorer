@@ -20,7 +20,7 @@ verdict (**Safe / Suspicious / Malicious**) and the evidence behind it — every
 | | |
 |---|---|
 | **Add-on** | Google Apps Script + CardService (Gmail side panel) |
-| **Backend** | Python 3.12 · FastAPI · Google Cloud Run |
+| **Backend** | Python 3.14 · FastAPI · Google Cloud Run |
 | **Analysis** | 24 explainable rule signals · VirusTotal reputation · AI assessment (Gemini) |
 | **Security** | Google identity-token auth (no shared secret) · least-privilege scopes · all input treated as hostile |
 | **Quality** | 157 automated tests · locked dependencies · vulnerability scan in CI |
@@ -247,7 +247,7 @@ A security tool that crashes and shows a green "Safe" is worse than no tool.
 
 ### Prerequisites
 
-- Python 3.12, Node.js (for `clasp`), the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install)
+- Python 3.14 (3.14.7 or newer — older versions have HTML-parser bugs), Node.js (for `clasp`), the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install)
 - `npm install -g @google/clasp@2.4.2`
 - A Google Cloud project with billing enabled (stays in the free tier) and these APIs:
   ```bash
@@ -260,7 +260,7 @@ A security tool that crashes and shows a green "Safe" is worse than no tool.
 
 ```bash
 cd backend
-python3.12 -m venv .venv
+python3.14 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt        # Windows: .venv\Scripts\pip
 .venv/bin/python -m pytest -q                         # 157 passed
 

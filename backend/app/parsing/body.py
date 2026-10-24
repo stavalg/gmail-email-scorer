@@ -26,6 +26,7 @@ class ParsedBody:
     image_count: int
     text_truncated: bool
     links_truncated: bool
+    html_parse_failed: bool = False
 
 
 class _HtmlCollector(HTMLParser):
@@ -76,8 +77,13 @@ class _HtmlCollector(HTMLParser):
 
 def parse_body(body_html: str, body_text: str) -> ParsedBody:
     collector = _HtmlCollector()
-    collector.feed(body_html)
-    collector.close()
+    html_parse_failed = False
+    try:
+        collector.feed(body_html)
+        collector.close()
+    except Exception:  # noqa: BLE001 - a parser bug on hostile HTML must not stop the analysis
+        html_parse_failed = True
+        collector._finish_link()  # keep the links collected before the failure
 
     text = body_text if body_text.strip() else "".join(collector.text_parts)
     anchor_hrefs = {link.href for link in collector.links}
@@ -94,4 +100,5 @@ def parse_body(body_html: str, body_text: str) -> ParsedBody:
         image_count=collector.image_count,
         text_truncated=len(text) > MAX_ANALYZED_TEXT_CHARS,
         links_truncated=len(links) > MAX_LINKS,
+        html_parse_failed=html_parse_failed,
     )

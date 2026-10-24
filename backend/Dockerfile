@@ -1,4 +1,5 @@
-FROM python:3.12-slim
+# Exact patch release: older Pythons have HTMLParser bugs (crash on "<![<![", 28 s on "</" x 250k).
+FROM python:3.14.7-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /srv
 COPY requirements.txt .
