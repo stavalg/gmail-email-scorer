@@ -17,7 +17,7 @@ verdict (**Safe / Suspicious / Malicious**) and the evidence behind it — every
   </tr>
 </table>
 
-> **Trying it yourself.** The deployed add-on works only for my own Gmail account, on purpose.
+> **Trying it yourself.** The deployed add-on works only for the author's Gmail account, on purpose.
 > The Google sign-in screen is in Testing mode, and the backend accepts only addresses on its
 > allowlist (see [Who may call the backend](#who-may-call-the-backend)). Anyone else gets a
 > *"You're not authorized"* card, which is the expected result. To see it working:
@@ -25,7 +25,7 @@ verdict (**Safe / Suspicious / Malicious**) and the evidence behind it — every
 >   ([Run the backend locally](#run-the-backend-locally)). It takes about 2 minutes and shows the full scoring.
 > - **The full Gmail experience:** deploy your own copy with your own address on the allowlist
 >   ([Setup and deployment](#7-setup-and-deployment)).
-> - **Or ask me** to add your Gmail address and I'll enable it.
+> - **Or ask the author** to add your Gmail address to the allowlist.
 
 | | |
 |---|---|
