@@ -1,0 +1,20 @@
+# Assignment brief (company material - keep out of the public repo)
+Home Assignment- Security Analyst.pdf
+
+# Secrets / local config
+.env
+*.env.local
+.clasprc.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
