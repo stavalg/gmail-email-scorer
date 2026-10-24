@@ -160,7 +160,8 @@ the count. Points are configured in one file (`config.py` / weights table).
   tokens) and never file contents.
 - At most 3 lookups per email, priority: attachment hashes → most suspicious domains. Skip a small
   allowlist of very common domains (google.com, etc.).
-- Known malicious (≥ 2 engines flag it) → finding +50 and a **score floor of 90**.
+- Known malicious (≥ 2 engines flag it) → a **confirmed** finding: no points; the email is
+  Malicious with score 100 (see 4.4).
 - Coverage shown as "VirusTotal: 3 of 10 checked".
 
 **LLM** (Gemini, free tier)
@@ -175,8 +176,9 @@ the count. Points are configured in one file (`config.py` / weights table).
 
 ### 4.4 Scoring
 
-1. `score = min(100, sum(points of all findings))`
-2. If VirusTotal confirms something malicious: `score = max(score, 90)`
+1. Findings are **clues** (guesses with points) or **confirmations** (facts from an authoritative
+   source such as VirusTotal; no points).
+2. If any finding is confirmed: `score = 100`. Otherwise `score = min(100, sum(points of all clues))`.
 3. Verdict: **0–29 Safe**, **30–69 Suspicious**, **70–100 Malicious**
 4. Positive facts (e.g. "DMARC passed") are shown but **never reduce** the score — anything the
    attacker controls must not be able to lower risk.
@@ -441,7 +443,7 @@ timeouts), `google-auth` (token verification), `tldextract` (with bundled suffix
 ## 8. Testing
 
 - **Unit tests** (pytest) for each rule, parsing (including the forged-auth-header case), and
-  scoring (thresholds, once-per-signal, VT floor, LLM cap).
+  scoring (thresholds, once-per-signal, confirmed → 100, LLM cap).
 - **API tests** with FastAPI `TestClient`: valid request, oversized input, missing/invalid token
   (token verification mocked).
 - **Analyzer failure tests:** VirusTotal/LLM timeout → result still returned with coverage status.

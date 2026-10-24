@@ -8,6 +8,11 @@ def finding(points, finding_id="x", evidence="e"):
     return Finding(id=finding_id, category="content", title="T", evidence=evidence, points=points)
 
 
+def confirmed(finding_id="vt"):
+    return Finding(id=finding_id, category="reputation", title="T", evidence="e", points=0,
+                   confirmed=True)
+
+
 def rules(*findings, status="ok"):
     return AnalyzerResult(name="rules", status=status, findings=list(findings))
 
@@ -28,10 +33,16 @@ def test_verdict_boundaries(score, verdict):
     assert verdict_for(score) == verdict
 
 
-def test_known_malicious_sets_floor():
-    vt = AnalyzerResult(name="virustotal", status="ok", known_malicious=True)
-    response = score_results([rules(), vt])
-    assert (response.score, response.verdict) == (90, "malicious")
+def test_confirmed_finding_scores_100_and_is_malicious():
+    vt = AnalyzerResult(name="virustotal", status="ok", findings=[confirmed()])
+    response = score_results([rules(finding(10)), vt])
+    assert (response.score, response.verdict) == (100, "malicious")
+
+
+def test_confirmed_findings_are_listed_first_and_marked():
+    vt = AnalyzerResult(name="virustotal", status="ok", findings=[confirmed()])
+    response = score_results([rules(finding(60, "clue")), vt])
+    assert [(f.id, f.confirmed) for f in response.findings] == [("vt", True), ("clue", False)]
 
 
 def test_findings_are_sorted_strongest_first():

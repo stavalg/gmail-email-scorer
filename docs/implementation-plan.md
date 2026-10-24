@@ -24,13 +24,14 @@ building, each covered by tests. The [README](../README.md) describes the final 
 | AI below 30 % | small points | shown as a fact | "5 % likely" is not a warning sign |
 | Timeouts | 5 s per wait, 8 s cap | 6 s, 8 s | tuned from Cloud Run latency logs |
 | Order | 16 → 17 → 18 → 19 | 18 → 19 → 16 → 17 | graded deliverables first |
+| VirusTotal score | finding +50 and score floor 90 (`known_malicious`) | **confirmed** finding: no points, score 100 | a confirmation is a fact, not a clue; no arbitrary numbers, works for any authoritative source |
 
 Added after an independent code review (each with a regression test):
 Authentication-Results read clause by clause with an exact authserv-id; link hosts resolved like
 browsers (`\` = `/`); unreadable HTML falls back to plain text and parsing runs off the event
 loop; "Sender verified" only when DMARC passed; brand names need specific phrases and regional
 brand domains are allowed; 10 s clock-skew tolerance for tokens; score-bar boundaries; emoji-safe
-truncation; HTTP client URL logging disabled (privacy). Final test count: 170 (the per-task counts
+truncation; HTTP client URL logging disabled (privacy). Final test count: 171 (the per-task counts
 below are one higher than actual from Task 6 on, a counting slip in the plan).
 
 ## How to read this plan

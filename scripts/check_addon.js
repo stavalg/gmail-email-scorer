@@ -40,6 +40,11 @@ assert.deepStrictEqual(plain(context.truncate('a😀b', 2)), { text: 'a', cut: t
 assert.deepStrictEqual(plain(context.truncate('', 3)), { text: '', cut: false });
 assert.deepStrictEqual(plain(context.truncate(null, 3)), { text: '', cut: false });
 
+// A confirmed reason carries no points, so it says "Confirmed" instead of "+0".
+assert.strictEqual(context.findingLabel({ points: 30, confirmed: false, category: 'links' }), '+30 · links');
+assert.strictEqual(context.findingLabel({ points: 0, confirmed: true, category: 'reputation' }),
+  'Confirmed · reputation');
+
 const valid = { verdict: 'safe', score: 5, findings: [], facts: [], notices: [], coverage: {} };
 assert.strictEqual(context.validateResult(valid), valid);
 const invalid = [

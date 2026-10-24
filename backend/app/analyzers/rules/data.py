@@ -32,8 +32,6 @@ WEIGHTS: dict[str, int] = {
     "archive_with_password": 30,
     "macro_attachment": 20,
     "archive_attachment": 15,
-    # reputation (VirusTotal)
-    "known_malicious": 50,
 }
 
 

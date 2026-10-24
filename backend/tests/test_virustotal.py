@@ -30,7 +30,8 @@ def test_known_malicious_domain_and_privacy():
 
     ctx = make_context(body_html='<a href="http://evil-login.xyz/reset?token=secret-token">x</a>')
     result = analyze(ctx, handler)
-    assert result.known_malicious and result.findings[0].id == "known_malicious"
+    [found] = result.findings
+    assert (found.id, found.confirmed, found.points) == ("known_malicious", True, 0)
     assert (result.checked, result.total) == (1, 1)
     assert seen[0].url.path == "/api/v3/domains/evil-login.xyz"
     assert seen[0].headers["x-apikey"] == "key"

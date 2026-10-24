@@ -23,7 +23,7 @@ verdict (**Safe / Suspicious / Malicious**) and the evidence behind it — every
 | **Backend** | Python 3.14 · FastAPI · Google Cloud Run |
 | **Analysis** | 24 explainable rule signals · VirusTotal reputation · AI assessment (Gemini) |
 | **Security** | Google identity-token auth (no shared secret) · least-privilege scopes · all input treated as hostile |
-| **Quality** | 170 automated tests · locked dependencies · vulnerability scan in CI |
+| **Quality** | 171 automated tests · locked dependencies · vulnerability scan in CI |
 
 ---
 
@@ -71,7 +71,7 @@ flowchart LR
   B --> R[Rules analyzer<br/>authentication · sender · links · content · attachments]
   B -. optional, parallel, 8 s cap .-> VT[VirusTotal<br/>domains + hashes only]
   B -. optional, parallel, 8 s cap .-> AI[Gemini<br/>max +25 points]
-  R --> S[Scoring<br/>cap 100 · floor 90 · verdict]
+  R --> S[Scoring<br/>confirmed → 100 · else sum, cap 100 · verdict]
   VT --> S
   AI --> S
   S -- "score, verdict, findings, coverage" --> A
@@ -81,7 +81,7 @@ flowchart LR
 **Thin add-on, smart backend.** The add-on only collects data, calls the backend, and renders
 the answer. All parsing and analysis lives in Python, because:
 
-- Apps Script is hard to test; Python is easy to test (170 tests run on every push).
+- Apps Script is hard to test; Python is easy to test (171 tests run on every push).
 - API keys stay on the server, never in code that runs in the user's mailbox.
 - New analyzers can be added without touching the add-on.
 
@@ -117,7 +117,7 @@ backend/app/
   analyzers/rules/data.py  every weight, brand and indicator list in one place
   analyzers/virustotal.py  reputation lookups (domains and file hashes only)
   analyzers/llm.py         AI assessment with Gemini (bounded, injection-resistant)
-backend/tests/             170 tests (unit, API, edge cases)
+backend/tests/             171 tests (unit, API, edge cases)
 backend/samples/           sample requests for curl
 scripts/check_addon.js     offline checks of the add-on's pure functions
 docs/                      design spec, implementation plan, demo emails, screenshots
@@ -152,17 +152,23 @@ do not add ten times), and the evidence says how many times it occurred.
 | | Archive + a password in the body (hides content from scanners) | +30 |
 | | Macro-enabled Office file | +20 |
 | | Archive | +15 |
-| **Reputation** (VirusTotal) | Known malicious by ≥ 2 security vendors | +50, and score ≥ 90 |
+| **Reputation** (VirusTotal) | Known malicious by ≥ 2 security vendors | **Confirmed** (no points, score 100) |
 | **AI** (Gemini) | Phishing likelihood ≥ 30 % (below: shown as a fact) | up to +25 |
 
 **Score and verdict**
 
 ```
-score = min(100, sum of points)
-if VirusTotal confirms something malicious: score = max(score, 90)   # confirmed evidence beats guesses
+if any reason is confirmed: score = 100                 # a fact, not a clue to add up
+else:                       score = min(100, sum of points)
 
 0–29 Safe   ·   30–69 Suspicious   ·   70–100 Malicious
 ```
+
+**Clues and confirmations.** Most reasons are *clues*: each is a guess with points, and clues add
+up. A *confirmation* comes from an authoritative source (today: VirusTotal) and states a known
+fact, so it has no points and makes the email Malicious with a score of 100. Any future
+authoritative source (e.g. Google Safe Browsing) only marks its reason as confirmed; the scorer
+does not change. The card labels it **Confirmed** instead of a number of points.
 
 **Principle: nothing the attacker controls can lower the score.** A passing SPF/DKIM/DMARC check
 is shown as a fact ("Sender verified: gmail.com") but never subtracts points — an attacker can
@@ -271,7 +277,7 @@ A security tool that crashes and shows a green "Safe" is worse than no tool.
 cd backend
 python3.14 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt        # Windows: .venv\Scripts\pip
-.venv/bin/python -m pytest -q                         # 170 passed
+.venv/bin/python -m pytest -q                         # 171 passed
 
 DEV_SKIP_AUTH=true .venv/bin/python -m uvicorn app.main:app --port 8080
 curl -s -X POST localhost:8080/v1/analyze -H "content-type: application/json" --data @samples/phishing.json
@@ -328,7 +334,7 @@ Then in the Apps Script editor (`clasp open`):
 ## 8. Testing
 
 ```bash
-cd backend && .venv/bin/python -m pytest -q      # 170 tests
+cd backend && .venv/bin/python -m pytest -q      # 171 tests
 node scripts/check_addon.js                        # add-on: escaping, answer validation, score bar
 ```
 
@@ -339,8 +345,8 @@ node scripts/check_addon.js                        # add-on: escaping, answer va
 | Header parsing | 12 | **forged `Authentication-Results` below Google's**, **`dmarc=pass` hidden in Google's own header**, lookalike authserv-id, Hebrew RFC 2047 names |
 | Body parsing | 15 | **link hidden after 100 KB of padding**, known pathological HTML (`</` × 250k, `<![`, `<!--`) in < 2 s, parser crash → plain-text fallback |
 | Rules | 54 | `paypa1.com`, `pineapple.com` / "Chase Miller" are *not* brands, `user@host` and `\@` URL tricks, SPF-only never "verified", `invoice‮fdp.exe` |
-| Scoring | 13 | cap at 100, boundaries 29/30/69/70, VirusTotal floor, caution notice |
-| VirusTotal | 6 | known-malicious floor, **only domains/hashes sent (never full URLs)**, unknown items, rate limit, malformed answers |
+| Scoring | 14 | cap at 100, boundaries 29/30/69/70, confirmed reason → 100 and listed first, caution notice |
+| VirusTotal | 6 | known malicious → a confirmed reason, **only domains/hashes sent (never full URLs)**, unknown items, rate limit, malformed answers |
 | AI | 17 | strict-JSON parsing, out-of-range / garbage replies rejected, **fake `</email>` tags stripped**, +25 cap, key never in the URL |
 | Pipeline | 7 | parsing off the event loop, unreadable HTML → partial + warning, slow analyzer times out, crashing analyzer becomes a status, no HTTP client without keys, **15 s budget** |
 | API end to end | 6 | a crashing rule never yields a silent Safe; a total failure returns no score |
@@ -396,6 +402,7 @@ control characters, mixed scripts, malformed headers): all handled without an er
 | Add-on → backend auth | shared API key · Google identity token | **Identity token** | No secret to leak; verifies user and calling app |
 | When to analyze | automatically on open · on click | **On click** | Privacy: nothing leaves Gmail without the user's action |
 | Score composition | ML model · weighted rules + optional intel | **Weighted rules + layers** | Every point is explainable; layers degrade gracefully |
+| Confirmed threats (VirusTotal) | extra points + a score floor of 90 · a separate confirmed tier | **Confirmed tier: score 100, no points** | A confirmation is a fact, not a clue; no arbitrary numbers, and new authoritative sources plug in without changing the scorer |
 | Positive signals | subtract points · facts only | **Facts only** | Attackers control what "looks good"; it must never lower risk |
 | Showing URLs | as links · as text · defanged | **Defanged** | Analyst convention; the card can never become a phishing link |
 | VirusTotal input | full URLs · domains + hashes | **Domains + hashes** | Full URLs can contain private tokens |

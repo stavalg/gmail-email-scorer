@@ -8,7 +8,6 @@ from app.sanitize import clean_text
 MAX_SCORE = 100
 SUSPICIOUS_MIN = 30
 MALICIOUS_MIN = 70
-KNOWN_MALICIOUS_FLOOR = 90
 CAUTION_NOTICE = "Some checks did not complete — treat 'Safe' with caution."
 
 SUMMARIES = {
@@ -30,10 +29,12 @@ def verdict_for(score: int) -> str:
 def score_results(results: list[AnalyzerResult], notices: Iterable[str] = (),
                   details: dict | None = None) -> AnalyzeResponse:
     """Combines all analyzer results into the final score, verdict and card content."""
-    findings = sorted((f for r in results for f in r.findings), key=lambda f: f.points, reverse=True)
-    score = min(MAX_SCORE, sum(f.points for f in findings))
-    if any(r.known_malicious for r in results):
-        score = max(score, KNOWN_MALICIOUS_FLOOR)  # confirmed evidence beats guesses
+    findings = sorted((f for r in results for f in r.findings),
+                      key=lambda f: (f.confirmed, f.points), reverse=True)
+    if any(f.confirmed for f in findings):
+        score = MAX_SCORE  # confirmed evidence is a fact, not a clue to add up
+    else:
+        score = min(MAX_SCORE, sum(f.points for f in findings))
     verdict = verdict_for(score)
 
     all_notices = [*notices, *(n for r in results for n in r.notices)]
@@ -46,7 +47,8 @@ def score_results(results: list[AnalyzerResult], notices: Iterable[str] = (),
         summary=SUMMARIES[verdict],
         findings=[
             FindingOut(id=f.id, category=f.category, title=clean_text(f.title),
-                       evidence=clean_text(f.evidence), points=f.points)
+                       evidence=clean_text(f.evidence), points=f.points,
+                       confirmed=f.confirmed)
             for f in findings
         ],
         facts=[clean_text(fact) for r in results for fact in r.facts],

@@ -118,6 +118,12 @@ function analyzeButton(label) {
     .setOnClickAction(CardService.newAction().setFunctionName('onAnalyze'));
 }
 
+/** A reason's top label: its points ('+30 · links'), or 'Confirmed' when a trusted source verified it. */
+function findingLabel(finding) {
+  const weight = finding.confirmed === true ? 'Confirmed' : '+' + Number(finding.points);
+  return weight + ' · ' + String(finding.category);
+}
+
 /** Collapsed by default: the header shows how many reasons there are; tap to expand. */
 function findingsSection(findings) {
   const section = CardService.newCardSection()
@@ -126,7 +132,7 @@ function findingsSection(findings) {
     .setNumUncollapsibleWidgets(0);
   findings.forEach((finding) => {
     section.addWidget(CardService.newDecoratedText()
-      .setTopLabel('+' + Number(finding.points) + ' · ' + String(finding.category))
+      .setTopLabel(findingLabel(finding))
       .setText('<b>' + escapeHtml(finding.title) + '</b><br>' + escapeHtml(finding.evidence))
       .setWrapText(true));
   });

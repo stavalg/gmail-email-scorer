@@ -9,7 +9,7 @@ import re
 import httpx
 
 from app.analyzers.base import AnalyzerResult, Finding
-from app.analyzers.rules.data import COMMON_SAFE_DOMAINS, WEIGHTS
+from app.analyzers.rules.data import COMMON_SAFE_DOMAINS
 from app.context import EmailContext
 from app.parsing.domains import defang, registrable_domain, web_host
 
@@ -62,13 +62,12 @@ async def analyze(ctx: EmailContext, api_key: str, client: httpx.AsyncClient) ->
             vendors = malicious_vendor_count(response.json())
         result.checked += 1
         lookups.append({"item": label, "malicious_vendors": vendors})
-        if vendors >= MALICIOUS_VENDOR_THRESHOLD and not result.known_malicious:
-            result.known_malicious = True
+        if vendors >= MALICIOUS_VENDOR_THRESHOLD and not result.findings:
             result.findings.append(Finding(
                 id="known_malicious", category="reputation", title="Known malicious (VirusTotal)",
                 evidence=f"{label} is flagged by {vendors} security vendors.",
-                points=WEIGHTS["known_malicious"]))
-    if result.checked and not result.known_malicious:
+                points=0, confirmed=True))
+    if result.checked and not result.findings:
         result.facts.append(
             f"VirusTotal: no known threats among the {result.checked} item(s) checked.")
     result.details = {"lookups": lookups}

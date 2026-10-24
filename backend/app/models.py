@@ -44,6 +44,7 @@ class FindingOut(BaseModel):
     title: str
     evidence: str
     points: int = Field(ge=0)
+    confirmed: bool = False  # from an authoritative source: no points, verdict is malicious
 
 
 class CoverageItem(BaseModel):
