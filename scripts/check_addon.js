@@ -15,6 +15,15 @@ assert.strictEqual(
   '&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;',
 );
 
+// Score scale: 20 cells of 5 points, separators at 30 and 70, filled cells up to the score.
+const filledCells = (html) => (html.match(/■/g) || []).length;
+for (const [score, filled] of [[0, 0], [35, 7], [100, 20]]) {
+  const bar = context.scoreBar(score);
+  assert.strictEqual(filledCells(bar), filled, `score ${score}`);
+  assert.strictEqual((bar.match(/■|□/g) || []).length, 20);
+  assert.strictEqual((bar.match(/│/g) || []).length, 2);
+}
+
 const valid = { verdict: 'safe', score: 5, findings: [], advice: [], facts: [], notices: [], coverage: {} };
 assert.strictEqual(context.validateResult(valid), valid);
 const invalid = [

@@ -42,18 +42,17 @@ function buildStartCard() {
 }
 
 /**
- * Clean at a glance: verdict, one line of advice and any warnings are visible;
+ * Clean at a glance: verdict, score scale and any warnings are visible;
  * the reasons and the analyst details open on demand.
  */
 function buildResultCard(result) {
   const style = VERDICT_STYLES[result.verdict];
   const isSafe = result.verdict === 'safe';
   const card = CardService.newCardBuilder().setHeader(CardService.newCardHeader()
-    .setTitle(style.icon + ' ' + style.label + ' · ' + result.score + ' / 100')
-    .setSubtitle('0–29 Safe · 30–69 Suspicious · 70–100 Malicious'));
+    .setTitle(style.icon + ' ' + style.label + ' · ' + result.score + ' / 100'));
 
-  const lines = ['<font color="' + style.color + '"><b>' + escapeHtml(result.summary) + '</b></font>']
-    .concat(result.advice.map((a) => '✋ ' + escapeHtml(a)))
+  const lines = [scoreBar(result.score),
+    '<font color="' + style.color + '"><b>' + escapeHtml(result.summary) + '</b></font>']
     .concat(result.notices.map((n) => '⚠️ ' + escapeHtml(n)))
     .concat(isSafe ? result.facts.map((f) => '✅ ' + escapeHtml(f)) : []);
   card.addSection(textSection(null, lines));
@@ -62,6 +61,24 @@ function buildResultCard(result) {
   card.addSection(detailsSection(result, !isSafe));
   card.addSection(CardService.newCardSection().addWidget(analyzeButton('Analyze again')));
   return card.build();
+}
+
+/**
+ * A colored 0–100 scale drawn with text (cards can't draw graphics): 20 cells of 5 points,
+ * green below 30, orange 30–69, red from 70, with a divider at 30 and 70.
+ * Cells up to the score are filled (■), the rest are outlined (□).
+ */
+function scoreBar(score) {
+  const filled = Math.round(score / 5);
+  let html = '';
+  for (let cell = 0; cell < 20; cell++) {
+    const cellScore = cell * 5;
+    if (cellScore === 30 || cellScore === 70) html += '<font color="#9aa0a6"> │ </font>';
+    const color = cellScore >= 70 ? VERDICT_STYLES.malicious.color
+      : cellScore >= 30 ? VERDICT_STYLES.suspicious.color : VERDICT_STYLES.safe.color;
+    html += '<font color="' + color + '">' + (cell < filled ? '■' : '□') + '</font>';
+  }
+  return html;
 }
 
 function buildErrorCard(kind) {
