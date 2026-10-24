@@ -1,0 +1,7 @@
+{
+  "headers_raw": "Authentication-Results: mx.google.com;\r\n       dkim=pass header.i=@gmail.com;\r\n       spf=pass smtp.mailfrom=dana.friend@gmail.com;\r\n       dmarc=pass (p=NONE) header.from=gmail.com\r\nFrom: Dana Friend <dana.friend@gmail.com>\r\nSubject: Lunch on Thursday?\r\nTo: you@gmail.com",
+  "body_html": "",
+  "body_text": "Hi! Are we still on for lunch on Thursday? Let me know.",
+  "attachments": [],
+  "truncated": false
+}

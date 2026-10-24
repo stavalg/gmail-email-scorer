@@ -1,0 +1,7 @@
+{
+  "headers_raw": "Authentication-Results: mx.google.com;\r\n       dkim=pass header.i=@paypa1.com;\r\n       spf=pass smtp.mailfrom=paypa1.com;\r\n       dmarc=fail (p=NONE) header.from=paypa1.com\r\nFrom: \"PayPal Support\" <security@paypa1.com>\r\nReply-To: help@secure-mailbox.xyz\r\nSubject: Urgent: your account will be suspended\r\nTo: you@gmail.com",
+  "body_html": "<p>We noticed unusual activity. Please verify your password within 24 hours.</p><a href=\"http://paypal.com.account-check.xyz/login\">www.paypal.com</a>",
+  "body_text": "",
+  "attachments": [{"name": "invoice.pdf.exe", "content_type": "application/octet-stream", "size": 2048, "sha256": null}],
+  "truncated": false
+}

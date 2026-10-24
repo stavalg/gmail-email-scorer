@@ -1,12 +1,15 @@
 """HTTP entry point of the Email Scorer backend."""
 import logging
+import time
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.auth import require_user
-from app.models import MAX_REQUEST_BYTES, AnalyzeRequest
+from app.config import get_settings
+from app.models import MAX_REQUEST_BYTES, AnalyzeRequest, AnalyzeResponse
+from app.pipeline import analyze_email
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("email_scorer")
@@ -37,8 +40,18 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-@app.post("/v1/analyze")
-def analyze(request: AnalyzeRequest, user: str = Depends(require_user)) -> dict:
-    # Temporary stub, replaced in Task 14.
-    return {"score": 0, "verdict": "safe",
-            "summary": f"Backend reachable (stub): {len(request.attachments)} attachment(s)."}
+@app.post("/v1/analyze", response_model=AnalyzeResponse)
+async def analyze(request: AnalyzeRequest, user: str = Depends(require_user)) -> AnalyzeResponse:
+    started = time.perf_counter()
+    try:
+        result = await analyze_email(request, get_settings())
+    except Exception as exc:  # noqa: BLE001
+        # Never return a score after a failure, and never log content: type name only.
+        logger.error("Analysis failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="internal_error") from None
+    logger.info(
+        "analyzed verdict=%s score=%d duration_ms=%d coverage=%s",
+        result.verdict, result.score, (time.perf_counter() - started) * 1000,
+        {name: item.status for name, item in result.coverage.items()},
+    )
+    return result
