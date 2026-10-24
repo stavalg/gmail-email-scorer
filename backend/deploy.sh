@@ -5,7 +5,7 @@ set -euo pipefail
 SERVICE=email-scorer
 REGION=us-central1
 # Secrets from Secret Manager (filled in by Tasks 16-17). Empty = none.
-SECRETS="VIRUSTOTAL_API_KEY=virustotal-api-key:latest"
+SECRETS="VIRUSTOTAL_API_KEY=virustotal-api-key:latest,GEMINI_API_KEY=gemini-api-key:latest"
 
 args=(
   run deploy "$SERVICE"

@@ -16,6 +16,8 @@ from app.sanitize import clean_text
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 MAX_EMAIL_CHARS = 4_000
 MAX_POINTS = 25
+# Below this the AI's opinion is shown as a fact, not a reason: "5% likely" isn't a warning sign.
+MIN_LIKELIHOOD_FOR_POINTS = 30
 _EMAIL_TAG = re.compile(r"<\s*/?\s*email\s*>", re.IGNORECASE)
 
 SYSTEM_PROMPT = (
@@ -68,13 +70,12 @@ async def analyze(ctx: EmailContext, api_key: str, model: str,
     likelihood, reason = parse_reply(response.json())
 
     result = AnalyzerResult(name="llm", status="ok", details={"phishing_likelihood": likelihood})
-    points = points_for(likelihood)
-    if points:
+    if likelihood >= MIN_LIKELIHOOD_FOR_POINTS:
         result.findings.append(Finding(
             id="ai_assessment", category="ai", title="AI assessment",
-            evidence=f"{likelihood}% phishing likelihood: {reason}", points=points))
+            evidence=f"{likelihood}% phishing likelihood: {reason}", points=points_for(likelihood)))
     else:
-        result.facts.append(f"AI assessment: very low phishing likelihood ({likelihood}%).")
+        result.facts.append(f"AI assessment: low phishing likelihood ({likelihood}%).")
     return result
 
 
@@ -87,6 +88,6 @@ def _request_body(ctx: EmailContext) -> dict:
             "temperature": 0,
             "maxOutputTokens": 256,
             "responseMimeType": "application/json",
-            "thinkingConfig": {"thinkingBudget": 0},
+            "thinkingConfig": {"thinkingLevel": "minimal"},  # fast: a classification, not reasoning
         },
     }

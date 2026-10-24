@@ -27,7 +27,7 @@ def _load() -> Settings:
         # Keys pasted into a terminal often carry a trailing newline, which breaks HTTP headers.
         virustotal_api_key=os.environ.get("VIRUSTOTAL_API_KEY", "").strip(),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", "").strip(),
-        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite"),
     )
 
 

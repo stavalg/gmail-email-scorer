@@ -59,7 +59,10 @@ def test_high_likelihood_adds_capped_points_and_key_stays_out_of_url():
     assert [(f.id, f.points) for f in result.findings] == [("ai_assessment", 20)]
     assert seen[0].headers["x-goog-api-key"] == "key"
     assert "key" not in str(seen[0].url.query)
-    assert "<email>" in json.loads(seen[0].content)["contents"][0]["parts"][0]["text"]
+    body = json.loads(seen[0].content)
+    assert "<email>" in body["contents"][0]["parts"][0]["text"]
+    # Current Gemini models take a thinking level (the old thinkingBudget is rejected with 400).
+    assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "minimal"}
 
 
 def test_maximum_is_25_points():
@@ -68,10 +71,19 @@ def test_maximum_is_25_points():
     assert result.findings[0].points == llm.MAX_POINTS == 25
 
 
-def test_zero_likelihood_is_a_fact_not_a_finding():
+@pytest.mark.parametrize("likelihood", [0, 5, 29])
+def test_low_likelihood_is_a_fact_not_a_reason(likelihood):
+    # A safe email must not show "Why? (1 reason)" because the AI said 5%.
     result = analyze(PHISHY, lambda r: httpx.Response(
-        200, json=gemini_reply({"phishing_likelihood": 0, "reason": "r"})))
-    assert result.findings == [] and result.facts
+        200, json=gemini_reply({"phishing_likelihood": likelihood, "reason": "r"})))
+    assert result.findings == []
+    assert result.facts == [f"AI assessment: low phishing likelihood ({likelihood}%)."]
+
+
+def test_likelihood_from_30_percent_is_a_reason():
+    result = analyze(PHISHY, lambda r: httpx.Response(
+        200, json=gemini_reply({"phishing_likelihood": 30, "reason": "r"})))
+    assert [(f.id, f.points) for f in result.findings] == [("ai_assessment", 8)]
 
 
 def test_empty_email_is_skipped_without_calling_the_api():

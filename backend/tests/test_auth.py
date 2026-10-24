@@ -71,6 +71,11 @@ def test_api_keys_are_stripped_of_pasted_whitespace(set_env):
     assert (settings.virustotal_api_key, settings.gemini_api_key) == ("abc123", "xyz")
 
 
+def test_default_ai_model_is_one_available_to_new_keys():
+    # gemini-2.5-flash was retired for new users (HTTP 404); 3.1-flash-lite answered in 1-4 s.
+    assert get_settings().gemini_model == "gemini-3.1-flash-lite"
+
+
 def test_dev_skip_auth_refused_on_cloud_run(set_env):
     set_env(DEV_SKIP_AUTH="true", K_SERVICE="email-scorer")
     with pytest.raises(RuntimeError):
