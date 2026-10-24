@@ -7,7 +7,7 @@ import logging
 from collections.abc import Callable, Sequence
 
 from app.analyzers.base import AnalyzerResult
-from app.analyzers.rules import authentication
+from app.analyzers.rules import authentication, sender
 from app.analyzers.rules.common import RuleOutput
 from app.context import EmailContext
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 RuleCheck = Callable[[EmailContext], RuleOutput]
 
-CHECKS: tuple[RuleCheck, ...] = (authentication.check,)
+CHECKS: tuple[RuleCheck, ...] = (authentication.check, sender.check)
 
 
 def run_rules(ctx: EmailContext, checks: Sequence[RuleCheck] | None = None) -> AnalyzerResult:
