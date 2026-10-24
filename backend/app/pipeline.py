@@ -18,8 +18,8 @@ from app.scoring import score_results
 
 logger = logging.getLogger(__name__)
 
-HTTP_TIMEOUT_SECONDS = 10.0   # per network wait; Gemini free tier is often slow
-OPTIONAL_TIMEOUT_SECONDS = 12.0  # per analyzer; they run in parallel, so 12 s total (budget: 15 s)
+HTTP_TIMEOUT_SECONDS = 6.0     # per network wait; measured AI answers: 1.2-3.8 s
+OPTIONAL_TIMEOUT_SECONDS = 8.0  # per analyzer; they run in parallel, so 8 s total (budget: 15 s)
 
 
 async def analyze_email(request: AnalyzeRequest, settings: Settings) -> AnalyzeResponse:

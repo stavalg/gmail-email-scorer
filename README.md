@@ -69,8 +69,8 @@ flowchart LR
   U[User opens email<br/>clicks Analyze] --> A[Gmail Add-on<br/>Apps Script]
   A -- "HTTPS + Google ID token<br/>headers, body, attachment hashes" --> B[Backend<br/>FastAPI on Cloud Run]
   B --> R[Rules analyzer<br/>authentication · sender · links · content · attachments]
-  B -. optional, parallel, 12 s cap .-> VT[VirusTotal<br/>domains + hashes only]
-  B -. optional, parallel, 12 s cap .-> AI[Gemini<br/>max +25 points]
+  B -. optional, parallel, 8 s cap .-> VT[VirusTotal<br/>domains + hashes only]
+  B -. optional, parallel, 8 s cap .-> AI[Gemini<br/>max +25 points]
   R --> S[Scoring<br/>cap 100 · floor 90 · verdict]
   VT --> S
   AI --> S
@@ -243,7 +243,7 @@ A security tool that crashes and shows a green "Safe" is worse than no tool.
   are fixed, and keeps the fallback anyway.)
 - **Total failure** returns an error card with Retry — **never a score**.
 - **Optional analyzers degrade gracefully:** VirusTotal and the AI run in parallel, each with a
-  10 s network timeout and a 12 s hard cap (Gmail allows ~30 s; our budget is 15 s). Slow, down or rate-limited →
+  6 s network timeout and an 8 s hard cap (Gmail allows ~30 s; our budget is 15 s). Slow, down or rate-limited →
   the result still arrives, and coverage says what didn't run.
 - **Truncation is always disclosed:** if an email was too large to analyze fully, the card says so.
 - **The add-on validates the backend's answer** too, and shows an error rather than a malformed card.
@@ -367,7 +367,7 @@ control characters, mixed scripts, malformed headers): all handled without an er
   (results are not cached, by design, to keep the backend stateless).
 - **VirusTotal free tier:** 4 lookups/minute, so at most 3 items per email.
 - **Gemini free tier latency varies:** most answers take 1–4 s, but some take 18–40 s. Those hit the
-  12 s cap and the card shows `AI: timed out` — the verdict still comes from the other layers.
+  8 s cap and the card shows `AI: timed out` — the verdict still comes from the other layers.
   A paid tier would make this reliable.
 - **AI models are retired over time:** `gemini-2.5-flash` stopped accepting new keys during development;
   the model is one setting (`GEMINI_MODEL`), currently `gemini-3.1-flash-lite` (fastest measured).
@@ -397,7 +397,7 @@ control characters, mixed scripts, malformed headers): all handled without an er
 | VirusTotal input | full URLs · domains + hashes | **Domains + hashes** | Full URLs can contain private tokens |
 | AI influence | decide verdict · bounded contribution | **≤ +25, add-only** | A successful prompt injection still can't produce "Safe" |
 | AI model | gemini-3.8-flash · flash-lite variants | **gemini-3.1-flash-lite**, minimal thinking | Measured 1–4 s vs 10–12 s (or overloaded) for the others on the free tier |
-| External-service timeouts | 5 s / 8 s · 10 s / 12 s | **10 s per wait, 12 s cap** | Fits the 15 s budget; lets slower-but-normal AI answers through |
+| External-service timeouts | 5 s / 8 s · 10 s / 12 s · 6 s / 8 s | **6 s per wait, 8 s cap** | Tuned from Cloud Run logs: every successful AI answer took 1.2–3.8 s and none arrived between 5 and 10 s, so waiting 10 s only delayed the card |
 | Card layout | everything visible · progressive disclosure | **Progressive disclosure** | Readable at a glance by a normal user; full evidence one tap away |
 | HTML size limit | 100 KB · 500 KB | **500 KB, links from all of it** | Defeats padding while keeping requests small |
 | Dependencies | direct pins · full lock + audit | **Full lock + `pip-audit` in CI** | Reproducible builds; new CVEs are caught automatically |

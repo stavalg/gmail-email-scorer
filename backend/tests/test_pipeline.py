@@ -14,9 +14,10 @@ def run(settings):
 
 
 def test_timeouts_fit_the_15_second_budget():
-    # Gemini's free tier sometimes needs 5-10 s; Gmail kills the add-on at ~30 s; budget is 15 s.
-    assert pipeline.HTTP_TIMEOUT_SECONDS == 10.0
-    assert pipeline.OPTIONAL_TIMEOUT_SECONDS == 12.0
+    # Measured on Cloud Run: every successful AI answer arrived in 1.2-3.8 s, and nothing arrived
+    # between 5 and 10 s, so a longer wait only delays the card. Budget is 15 s (Gmail: ~30 s).
+    assert pipeline.HTTP_TIMEOUT_SECONDS == 6.0
+    assert pipeline.OPTIONAL_TIMEOUT_SECONDS == 8.0
     assert pipeline.HTTP_TIMEOUT_SECONDS <= pipeline.OPTIONAL_TIMEOUT_SECONDS <= 15.0
 
 
