@@ -23,7 +23,7 @@ verdict (**Safe / Suspicious / Malicious**) and the evidence behind it — every
 | **Backend** | Python 3.14 · FastAPI · Google Cloud Run |
 | **Analysis** | 24 explainable rule signals · VirusTotal reputation · AI assessment (Gemini) |
 | **Security** | Google identity-token auth (no shared secret) · least-privilege scopes · all input treated as hostile |
-| **Quality** | 157 automated tests · locked dependencies · vulnerability scan in CI |
+| **Quality** | 170 automated tests · locked dependencies · vulnerability scan in CI |
 
 ---
 
@@ -81,7 +81,7 @@ flowchart LR
 **Thin add-on, smart backend.** The add-on only collects data, calls the backend, and renders
 the answer. All parsing and analysis lives in Python, because:
 
-- Apps Script is hard to test; Python is easy to test (157 tests run on every push).
+- Apps Script is hard to test; Python is easy to test (170 tests run on every push).
 - API keys stay on the server, never in code that runs in the user's mailbox.
 - New analyzers can be added without touching the add-on.
 
@@ -112,7 +112,7 @@ backend/app/
   parsing/                 headers, body (text + links), domains — text only, never fetched
   analyzers/rules/         authentication, sender, links, content, attachments + runner
   analyzers/rules/data.py  every weight, brand and indicator list in one place
-backend/tests/             157 tests (unit, API, edge cases)
+backend/tests/             170 tests (unit, API, edge cases)
 backend/samples/           sample requests for curl
 scripts/check_addon.js     offline checks of the add-on's pure functions
 ```
@@ -128,7 +128,7 @@ do not add ten times), and the evidence says how many times it occurred.
 | | SPF fail / DKIM fail | +15 each (softfail: half) |
 | **Sender** | Lookalike domain (`paypa1.com`, `rnicrosoft.com`) | +30 |
 | | Display name contains a different email address | +30 |
-| | Display name names a brand the domain doesn't belong to | +25 |
+| | Display name uses a brand phrase ("PayPal", "Chase Bank", "Apple Support") and the domain isn't that brand's | +25 |
 | | Replies go to a different domain (Reply-To) | +15 |
 | | Sender address can't be read | +10 |
 | **Links** (read as text, never visited) | Brand hidden in someone else's domain (`paypal.com.evil.xyz`) | +30 |
@@ -198,9 +198,10 @@ email address. No mailbox-wide read, no modify permissions.
 | Error messages leaking input | Validation errors return a generic `invalid_request` — the email is never echoed back |
 | Visiting malicious links | Links are **never fetched**; they are parsed as text |
 | Malicious attachments | **Contents never leave Gmail** — only name, type, size and SHA-256 |
-| Malicious HTML / scripts | Parsed as data with Python's built-in parser; nothing rendered or executed |
-| **Forged authentication headers** | An attacker can write `Authentication-Results: … dmarc=pass` into their own email. Only the **topmost header written by `mx.google.com`** is trusted |
-| **Injection into our own card** | Subjects, file names and AI text are attacker-influenced; **every string is HTML-escaped** before display, and URLs are **defanged** (`hxxp://evil[.]com`) so they can't be clicked |
+| Malicious HTML / scripts | Parsed as data with Python's built-in parser; nothing rendered or executed. HTML the parser can't read falls back to the plain text (with a visible warning), and parsing runs off the server's event loop |
+| **Forged authentication headers** | An attacker can write `Authentication-Results: … dmarc=pass` into their own email. Only the **topmost header whose authserv-id is exactly `mx.google.com`** is trusted, and it is read clause by clause with comments and quoted text removed — Google echoes the attacker-chosen envelope sender there |
+| **Deceptive link syntax** | Hosts are resolved the way browsers do (WHATWG): `https://evil.xyz\@paypal.com` is analyzed as `evil.xyz`, not `paypal.com` |
+| **Injection into our own card** | Subjects, file names and AI text are attacker-influenced; **every string is HTML-escaped** before display, so nothing becomes formatting or a link. Domains and URLs in rule evidence are also **defanged** (`hxxp://evil[.]com`) |
 | Text-direction tricks | Invisible right-to-left characters are stripped before display |
 | Padding attack | Links are extracted from the whole body *before* text is truncated, so 100 KB of filler can't hide a link |
 | Hostile external answers | VirusTotal / AI answers are timed out, schema-validated and range-checked |
@@ -236,6 +237,10 @@ A security tool that crashes and shows a green "Safe" is worse than no tool.
 - **Isolated checks:** each rule check runs on its own. If one crashes on a strange email, the
   others still run, coverage shows `partial`, and a Safe verdict gets the visible warning
   *"Some checks did not complete — treat 'Safe' with caution."*
+- **Unreadable HTML** never stops the analysis: whatever was read is kept, the plain text is
+  analyzed instead, coverage shows `partial`, and the card says so. (Python 3.12's HTML parser
+  crashed on `<![<![` and took 28 s on 500 KB of `</`; the project pins Python 3.14.7, where both
+  are fixed, and keeps the fallback anyway.)
 - **Total failure** returns an error card with Retry — **never a score**.
 - **Optional analyzers degrade gracefully:** VirusTotal and the AI run in parallel, each with a
   10 s network timeout and a 12 s hard cap (Gmail allows ~30 s; our budget is 15 s). Slow, down or rate-limited →
@@ -262,7 +267,7 @@ A security tool that crashes and shows a green "Safe" is worse than no tool.
 cd backend
 python3.14 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt        # Windows: .venv\Scripts\pip
-.venv/bin/python -m pytest -q                         # 157 passed
+.venv/bin/python -m pytest -q                         # 170 passed
 
 DEV_SKIP_AUTH=true .venv/bin/python -m uvicorn app.main:app --port 8080
 curl -s -X POST localhost:8080/v1/analyze -H "content-type: application/json" --data @samples/phishing.json
@@ -292,6 +297,11 @@ Then in the Apps Script editor (`clasp open`):
    ```bash
    cd backend && ./deploy.sh
    ```
+   After the first deploy, keep old container images from piling up (stays in the free tier):
+   ```bash
+   gcloud artifacts repositories set-cleanup-policies cloud-run-source-deploy \
+     --location=us-central1 --policy=cleanup-policy.json --no-dry-run
+   ```
 3. Put the printed `Service URL` into `addon/Config.gs` and into `urlFetchWhitelist` in
    `addon/appsscript.json` (with a trailing `/`), then `clasp push --force`.
 4. Optional keys — each analyzer is skipped when its key is absent. Get a free
@@ -314,23 +324,23 @@ Then in the Apps Script editor (`clasp open`):
 ## 8. Testing
 
 ```bash
-cd backend && .venv/bin/python -m pytest -q      # 157 tests
+cd backend && .venv/bin/python -m pytest -q      # 170 tests
 node scripts/check_addon.js                        # add-on: escaping, answer validation, score bar
 ```
 
 | Area | Tests | Examples |
 |---|---|---|
-| Authentication & config | 11 | missing / malformed / invalid token, user not on the allowlist, unverified email, fail-closed config, API keys stripped of pasted whitespace |
+| Authentication & config | 12 | missing / malformed / invalid token, user not on the allowlist, unverified email, fail-closed config, API keys stripped of pasted whitespace, clock-skew tolerance |
 | Input validation | 8 | unknown fields rejected without echo, size limits, bad hashes, oversized request |
-| Header parsing | 10 | **forged `Authentication-Results` below Google's**, Hebrew RFC 2047 names, malformed From |
-| Body parsing | 13 | **link hidden after 100 KB of padding**, 500 KB of broken HTML parsed in < 2 s |
-| Rules | 49 | `paypa1.com`, `pineapple.com` is *not* Apple, `user@host` URL trick, `invoice‮fdp.exe` |
+| Header parsing | 12 | **forged `Authentication-Results` below Google's**, **`dmarc=pass` hidden in Google's own header**, lookalike authserv-id, Hebrew RFC 2047 names |
+| Body parsing | 15 | **link hidden after 100 KB of padding**, known pathological HTML (`</` × 250k, `<![`, `<!--`) in < 2 s, parser crash → plain-text fallback |
+| Rules | 54 | `paypa1.com`, `pineapple.com` / "Chase Miller" are *not* brands, `user@host` and `\@` URL tricks, SPF-only never "verified", `invoice‮fdp.exe` |
 | Scoring | 13 | cap at 100, boundaries 29/30/69/70, VirusTotal floor, caution notice |
 | VirusTotal | 6 | known-malicious floor, **only domains/hashes sent (never full URLs)**, unknown items, rate limit, malformed answers |
 | AI | 17 | strict-JSON parsing, out-of-range / garbage replies rejected, **fake `</email>` tags stripped**, +25 cap, key never in the URL |
-| Pipeline | 5 | slow analyzer times out, crashing analyzer becomes a status, no HTTP client without keys, **15 s budget** |
+| Pipeline | 7 | parsing off the event loop, unreadable HTML → partial + warning, slow analyzer times out, crashing analyzer becomes a status, no HTTP client without keys, **15 s budget** |
 | API end to end | 6 | a crashing rule never yields a silent Safe; a total failure returns no score |
-| Other | 19 | domains, sanitizing, weights validation, runner isolation, logs, health |
+| Other | 20 | domains (incl. browser-style URL hosts), sanitizing, weights validation, runner isolation, logs, health |
 
 GitHub Actions runs the backend tests, `pip-audit` and the add-on checks on every push. Before
 shipping, the API was also fuzzed with 500 randomly generated hostile emails (broken HTML,
@@ -342,9 +352,14 @@ control characters, mixed scripts, malformed headers): all handled without an er
   labelled dataset of phishing and legitimate mail.
 - **False positives on marketing mail.** Newsletters use shorteners, tracking redirects and urgent
   wording, which can push them into Suspicious.
-- **Small brand list** (19 brands) and **English-only** content phrases.
-- **Regional domains are allowed by name:** `paypal.de` is treated as a regional site, not a
-  lookalike, so a brand-new `paypal.<tld>` registration would not be flagged by that rule.
+- **Small brand list** (19 brands) and **English-only** content phrases. Brand names in a sender
+  name must be specific phrases ("Chase Bank", not "Chase"), which avoids flagging people and
+  newsletters but misses some lazier impersonations.
+- **Any non-Latin link domain counts as "disguised characters"** (+25), including legitimate
+  Hebrew or German domains; a confusable-character check would be more precise.
+- **Regional domains are allowed by name:** `paypal.de` or `amazon.fr` is treated as a regional site
+  (by both the sender and the link rules), not a lookalike, so a brand-new `paypal.<tld>`
+  registration would not be flagged by those rules.
 - **Forwarded mail** is judged by the forwarder, not the original sender.
 - **The backend sees email content** — the cost of keeping logic testable and keys server-side.
   Mitigated by being stateless, on-demand, and logging no content.

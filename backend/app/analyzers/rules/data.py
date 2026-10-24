@@ -32,7 +32,7 @@ WEIGHTS: dict[str, int] = {
     "archive_with_password": 30,
     "macro_attachment": 20,
     "archive_attachment": 15,
-    # reputation (VirusTotal, Task 16)
+    # reputation (VirusTotal)
     "known_malicious": 50,
 }
 
@@ -128,7 +128,7 @@ EXECUTABLE_CONTENT_TYPES = frozenset({
 HTML_CONTENT_TYPES = frozenset({"text/html"})
 LARGE_ATTACHMENT_BYTES = 10 * 1024 * 1024
 
-# Very common domains not worth a VirusTotal lookup (Task 16).
+# Very common domains not worth a VirusTotal lookup (saves the free quota).
 COMMON_SAFE_DOMAINS = frozenset({
     "google.com", "gmail.com", "youtube.com", "microsoft.com", "apple.com", "amazon.com",
     "facebook.com", "linkedin.com", "github.com", "paypal.com",
