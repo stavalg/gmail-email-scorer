@@ -473,7 +473,7 @@ Expected:
 - `Token audience (aud):` something like `1234-abc.apps.googleusercontent.com` — **copy this value**, Task 3 needs it
 - `Token email:` your Gmail
 
-If `Identity token: NO` or the probe errors: **stop and tell Claude** — the design's fallback (shared API key, spec §5.1) applies.
+If `Identity token: NO` or the probe errors: **stop**: the design's fallback (shared API key, spec §5.1) applies.
 
 - [ ] **Step 7: Commit**
 
