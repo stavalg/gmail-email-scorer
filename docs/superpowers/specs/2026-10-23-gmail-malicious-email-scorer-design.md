@@ -106,12 +106,13 @@ degradation).
 | Field | Source in add-on | Limit |
 |---|---|---|
 | `headers_raw` | Header block of `message.getRawContent()` (text before the first blank line) | 64 KB |
-| `body_html` | `message.getBody()` | 100 KB (truncated) |
+| `body_html` | `message.getBody()` | 500 KB (truncated); links extracted from all of it |
 | `body_text` | `message.getPlainBody()` | 100 KB (truncated) |
 | `attachments[]` | `name`, `content_type`, `size`, `sha256` (only if size ≤ 10 MB) | 50 items |
 
 The backend parses headers (From, Reply-To, Authentication-Results) with Python's `email`
 module and extracts links from the HTML itself, so all parsing logic lives in testable Python.
+Content analysis uses the first 100 KB of text. Request body cap: 4 MB.
 Links: at most 200 processed.
 
 ### 4.2 Rules analyzer — signals
