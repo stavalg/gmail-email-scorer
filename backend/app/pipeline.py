@@ -1,6 +1,13 @@
 """Runs the full analysis of one email."""
+import asyncio
+import functools
 import logging
+import ssl
 
+import certifi
+import httpx
+
+from app.analyzers import virustotal
 from app.analyzers.base import AnalyzerResult
 from app.analyzers.rules.runner import run_rules
 from app.config import Settings
@@ -11,6 +18,9 @@ from app.scoring import score_results
 
 logger = logging.getLogger(__name__)
 
+HTTP_TIMEOUT_SECONDS = 5.0
+OPTIONAL_TIMEOUT_SECONDS = 8.0
+
 
 async def analyze_email(request: AnalyzeRequest, settings: Settings) -> AnalyzeResponse:
     ctx = build_context(request)
@@ -19,8 +29,35 @@ async def analyze_email(request: AnalyzeRequest, settings: Settings) -> AnalyzeR
 
 
 async def run_optional_analyzers(ctx: EmailContext, settings: Settings) -> list[AnalyzerResult]:
-    """External services (VirusTotal, AI). Added in Tasks 16-17."""
-    return []
+    """External services. Each is optional (skipped without an API key), time-boxed, runs in
+    parallel with the others, and can never break the analysis: a failure becomes a status."""
+    keys = {"virustotal": settings.virustotal_api_key}
+    if not any(keys.values()):
+        return [AnalyzerResult(name=name, status="skipped") for name in keys]
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS, verify=_tls_context()) as client:
+        jobs = [
+            ("virustotal", keys["virustotal"],
+             lambda: virustotal.analyze(ctx, keys["virustotal"], client)),
+        ]
+        return list(await asyncio.gather(*(_guarded(name, key, start) for name, key, start in jobs)))
+
+
+@functools.cache
+def _tls_context() -> ssl.SSLContext:
+    """Loading the trusted certificates takes ~0.4 s, so do it once, not per email."""
+    return ssl.create_default_context(cafile=certifi.where())
+
+
+async def _guarded(name: str, api_key: str, start) -> AnalyzerResult:
+    if not api_key:
+        return AnalyzerResult(name=name, status="skipped")
+    try:
+        return await asyncio.wait_for(start(), OPTIONAL_TIMEOUT_SECONDS)
+    except (TimeoutError, httpx.TimeoutException):
+        return AnalyzerResult(name=name, status="timeout")
+    except Exception as exc:  # noqa: BLE001 - an optional analyzer must never break the analysis
+        logger.warning("%s failed: %s", name, type(exc).__name__)
+        return AnalyzerResult(name=name, status="error")
 
 
 def input_notices(ctx: EmailContext) -> list[str]:

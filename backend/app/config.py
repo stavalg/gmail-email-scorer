@@ -24,8 +24,9 @@ def _load() -> Settings:
         oauth_client_id=os.environ.get("OAUTH_CLIENT_ID", ""),
         allowed_emails=frozenset(e.strip().lower() for e in emails.split(",") if e.strip()),
         dev_skip_auth=dev_skip_auth,
-        virustotal_api_key=os.environ.get("VIRUSTOTAL_API_KEY", ""),
-        gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
+        # Keys pasted into a terminal often carry a trailing newline, which breaks HTTP headers.
+        virustotal_api_key=os.environ.get("VIRUSTOTAL_API_KEY", "").strip(),
+        gemini_api_key=os.environ.get("GEMINI_API_KEY", "").strip(),
         gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
     )
 

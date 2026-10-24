@@ -1,5 +1,5 @@
 # Exact versions of every runtime package, including indirect ones (a lock file).
-# Direct dependencies: fastapi, uvicorn, pydantic, httpx, google-auth, requests, tldextract.
+# Direct dependencies: fastapi, uvicorn, pydantic, httpx, google-auth, requests, tldextract, certifi.
 # To update: install new direct versions in a fresh venv, run tests + pip-audit, then pip freeze.
 annotated-doc==0.0.5
 annotated-types==0.8.0

@@ -64,6 +64,13 @@ def test_dev_skip_auth_works_locally(set_env):
     assert post().status_code == 200
 
 
+def test_api_keys_are_stripped_of_pasted_whitespace(set_env):
+    # Secrets created from a terminal often end with a newline, which breaks HTTP headers.
+    set_env(VIRUSTOTAL_API_KEY="abc123\r\n", GEMINI_API_KEY="  xyz\n")
+    settings = get_settings()
+    assert (settings.virustotal_api_key, settings.gemini_api_key) == ("abc123", "xyz")
+
+
 def test_dev_skip_auth_refused_on_cloud_run(set_env):
     set_env(DEV_SKIP_AUTH="true", K_SERVICE="email-scorer")
     with pytest.raises(RuntimeError):
