@@ -23,7 +23,7 @@ verdict (**Safe / Suspicious / Malicious**) and the evidence behind it — every
 | **Backend** | Python 3.12 · FastAPI · Google Cloud Run |
 | **Analysis** | 24 explainable rule signals · VirusTotal reputation · AI assessment (Gemini) |
 | **Security** | Google identity-token auth (no shared secret) · least-privilege scopes · all input treated as hostile |
-| **Quality** | 127 automated tests · locked dependencies · vulnerability scan in CI |
+| **Quality** | 157 automated tests · locked dependencies · vulnerability scan in CI |
 
 ---
 
@@ -69,8 +69,8 @@ flowchart LR
   U[User opens email<br/>clicks Analyze] --> A[Gmail Add-on<br/>Apps Script]
   A -- "HTTPS + Google ID token<br/>headers, body, attachment hashes" --> B[Backend<br/>FastAPI on Cloud Run]
   B --> R[Rules analyzer<br/>authentication · sender · links · content · attachments]
-  B -. optional, parallel, 8 s cap .-> VT[VirusTotal<br/>domains + hashes only]
-  B -. optional, parallel, 8 s cap .-> AI[Gemini<br/>max +25 points]
+  B -. optional, parallel, 12 s cap .-> VT[VirusTotal<br/>domains + hashes only]
+  B -. optional, parallel, 12 s cap .-> AI[Gemini<br/>max +25 points]
   R --> S[Scoring<br/>cap 100 · floor 90 · verdict]
   VT --> S
   AI --> S
@@ -81,7 +81,7 @@ flowchart LR
 **Thin add-on, smart backend.** The add-on only collects data, calls the backend, and renders
 the answer. All parsing and analysis lives in Python, because:
 
-- Apps Script is hard to test; Python is easy to test (127 tests run on every push).
+- Apps Script is hard to test; Python is easy to test (157 tests run on every push).
 - API keys stay on the server, never in code that runs in the user's mailbox.
 - New analyzers can be added without touching the add-on.
 
@@ -92,8 +92,8 @@ fail without the scorer changing.
 | Analyzer | Status | What it does |
 |---|---|---|
 | **Rules** | ✅ Built | 24 explainable signals, no network calls |
-| **VirusTotal** | 🔨 In progress | Is an attachment fingerprint or link domain already known to be malicious? |
-| **AI (Gemini)** | 🔨 In progress | How likely is this to be phishing, judged from the wording? Capped at +25 points |
+| **VirusTotal** | ✅ Built | Is an attachment fingerprint or link domain already known to be malicious? |
+| **AI (Gemini)** | ✅ Built | How likely is this to be phishing, judged from the wording? Capped at +25 points |
 
 ### Code map
 
@@ -112,7 +112,7 @@ backend/app/
   parsing/                 headers, body (text + links), domains — text only, never fetched
   analyzers/rules/         authentication, sender, links, content, attachments + runner
   analyzers/rules/data.py  every weight, brand and indicator list in one place
-backend/tests/             127 tests (unit, API, edge cases)
+backend/tests/             157 tests (unit, API, edge cases)
 backend/samples/           sample requests for curl
 scripts/check_addon.js     offline checks of the add-on's pure functions
 ```
@@ -147,7 +147,7 @@ do not add ten times), and the evidence says how many times it occurred.
 | | Macro-enabled Office file | +20 |
 | | Archive | +15 |
 | **Reputation** (VirusTotal) | Known malicious by ≥ 2 security vendors | +50, and score ≥ 90 |
-| **AI** (Gemini) | Phishing likelihood 0–100 % | up to +25 |
+| **AI** (Gemini) | Phishing likelihood ≥ 30 % (below: shown as a fact) | up to +25 |
 
 **Score and verdict**
 
@@ -223,8 +223,7 @@ email address. No mailbox-wide read, no modify permissions.
 - **Logs contain no email data:** only verdict, score, duration and which checks ran. The HTTP
   client's request-URL logging is switched off so looked-up domains can't reach logs
   (regression-tested).
-- **Data minimization to third parties** (VirusTotal and AI layers in progress — this is their
-  design): VirusTotal receives **registrable domains and file
+- **Data minimization to third parties:** VirusTotal receives **registrable domains and file
   hashes only** — never full links (they can contain private tokens, like password-reset links)
   and never files. The AI receives the subject and at most 4,000 characters of text.
 - **Known trade-off:** Gemini's free tier may use submitted text to improve Google's products.
@@ -239,7 +238,7 @@ A security tool that crashes and shows a green "Safe" is worse than no tool.
   *"Some checks did not complete — treat 'Safe' with caution."*
 - **Total failure** returns an error card with Retry — **never a score**.
 - **Optional analyzers degrade gracefully:** VirusTotal and the AI run in parallel, each with a
-  5 s HTTP timeout and an 8 s hard cap (Gmail allows ~30 s). Slow, down or rate-limited →
+  10 s network timeout and a 12 s hard cap (Gmail allows ~30 s; our budget is 15 s). Slow, down or rate-limited →
   the result still arrives, and coverage says what didn't run.
 - **Truncation is always disclosed:** if an email was too large to analyze fully, the card says so.
 - **The add-on validates the backend's answer** too, and shows an error rather than a malformed card.
@@ -263,7 +262,7 @@ A security tool that crashes and shows a green "Safe" is worse than no tool.
 cd backend
 python3.12 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt        # Windows: .venv\Scripts\pip
-.venv/bin/python -m pytest -q                         # 127 passed
+.venv/bin/python -m pytest -q                         # 157 passed
 
 DEV_SKIP_AUTH=true .venv/bin/python -m uvicorn app.main:app --port 8080
 curl -s -X POST localhost:8080/v1/analyze -H "content-type: application/json" --data @samples/phishing.json
@@ -295,29 +294,41 @@ Then in the Apps Script editor (`clasp open`):
    ```
 3. Put the printed `Service URL` into `addon/Config.gs` and into `urlFetchWhitelist` in
    `addon/appsscript.json` (with a trailing `/`), then `clasp push --force`.
-4. Optional keys (each analyzer is skipped when its key is absent):
+4. Optional keys — each analyzer is skipped when its key is absent. Get a free
+   [VirusTotal API key](https://www.virustotal.com) and a free
+   [Gemini API key](https://aistudio.google.com) (create it in a project **without billing** to
+   stay on the free tier), then store each one without it touching the screen or shell history:
    ```bash
    read -rs KEY && printf "%s" "$KEY" | gcloud secrets create virustotal-api-key --data-file=- && unset KEY
+   read -rs KEY && printf "%s" "$KEY" | gcloud secrets create gemini-api-key --data-file=- && unset KEY
+   SA="$(gcloud projects describe "$(gcloud config get-value project)" --format='value(projectNumber)')-compute@developer.gserviceaccount.com"
+   for s in virustotal-api-key gemini-api-key; do
+     gcloud secrets add-iam-policy-binding "$s" --member="serviceAccount:$SA" --role=roles/secretmanager.secretAccessor
+   done
    ```
-   and set `SECRETS=` in `deploy.sh` (see the comment there).
+   `deploy.sh` already maps both secrets (`SECRETS=`); remove an entry there to disable that
+   analyzer, then run `./deploy.sh` again.
 
 > The health endpoint is `/health`, not `/healthz`: Cloud Run reserves paths ending in `z`.
 
 ## 8. Testing
 
 ```bash
-cd backend && .venv/bin/python -m pytest -q      # 127 tests
+cd backend && .venv/bin/python -m pytest -q      # 157 tests
 node scripts/check_addon.js                        # add-on: escaping, answer validation, score bar
 ```
 
 | Area | Tests | Examples |
 |---|---|---|
-| Authentication | 9 | missing / malformed / invalid token, user not on the allowlist, unverified email, fail-closed config |
+| Authentication & config | 11 | missing / malformed / invalid token, user not on the allowlist, unverified email, fail-closed config, API keys stripped of pasted whitespace |
 | Input validation | 8 | unknown fields rejected without echo, size limits, bad hashes, oversized request |
 | Header parsing | 10 | **forged `Authentication-Results` below Google's**, Hebrew RFC 2047 names, malformed From |
 | Body parsing | 13 | **link hidden after 100 KB of padding**, 500 KB of broken HTML parsed in < 2 s |
 | Rules | 49 | `paypa1.com`, `pineapple.com` is *not* Apple, `user@host` URL trick, `invoice‮fdp.exe` |
 | Scoring | 13 | cap at 100, boundaries 29/30/69/70, VirusTotal floor, caution notice |
+| VirusTotal | 6 | known-malicious floor, **only domains/hashes sent (never full URLs)**, unknown items, rate limit, malformed answers |
+| AI | 17 | strict-JSON parsing, out-of-range / garbage replies rejected, **fake `</email>` tags stripped**, +25 cap, key never in the URL |
+| Pipeline | 5 | slow analyzer times out, crashing analyzer becomes a status, no HTTP client without keys, **15 s budget** |
 | API end to end | 6 | a crashing rule never yields a silent Safe; a total failure returns no score |
 | Other | 19 | domains, sanitizing, weights validation, runner isolation, logs, health |
 
@@ -340,6 +351,11 @@ control characters, mixed scripts, malformed headers): all handled without an er
 - **The card can reset** when Gmail redraws the side panel; the user clicks Analyze again
   (results are not cached, by design, to keep the backend stateless).
 - **VirusTotal free tier:** 4 lookups/minute, so at most 3 items per email.
+- **Gemini free tier latency varies:** most answers take 1–4 s, but some take 18–40 s. Those hit the
+  12 s cap and the card shows `AI: timed out` — the verdict still comes from the other layers.
+  A paid tier would make this reliable.
+- **AI models are retired over time:** `gemini-2.5-flash` stopped accepting new keys during development;
+  the model is one setting (`GEMINI_MODEL`), currently `gemini-3.1-flash-lite` (fastest measured).
 - **Single-user allowlist;** not packaged for the Google Workspace Marketplace.
 
 ## 10. Future work
@@ -365,6 +381,8 @@ control characters, mixed scripts, malformed headers): all handled without an er
 | Showing URLs | as links · as text · defanged | **Defanged** | Analyst convention; the card can never become a phishing link |
 | VirusTotal input | full URLs · domains + hashes | **Domains + hashes** | Full URLs can contain private tokens |
 | AI influence | decide verdict · bounded contribution | **≤ +25, add-only** | A successful prompt injection still can't produce "Safe" |
+| AI model | gemini-3.8-flash · flash-lite variants | **gemini-3.1-flash-lite**, minimal thinking | Measured 1–4 s vs 10–12 s (or overloaded) for the others on the free tier |
+| External-service timeouts | 5 s / 8 s · 10 s / 12 s | **10 s per wait, 12 s cap** | Fits the 15 s budget; lets slower-but-normal AI answers through |
 | Card layout | everything visible · progressive disclosure | **Progressive disclosure** | Readable at a glance by a normal user; full evidence one tap away |
 | HTML size limit | 100 KB · 500 KB | **500 KB, links from all of it** | Defeats padding while keeping requests small |
 | Dependencies | direct pins · full lock + audit | **Full lock + `pip-audit` in CI** | Reproducible builds; new CVEs are caught automatically |

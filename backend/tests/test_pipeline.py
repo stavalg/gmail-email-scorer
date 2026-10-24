@@ -13,6 +13,13 @@ def run(settings):
     return asyncio.run(pipeline.analyze_email(REQUEST, settings))
 
 
+def test_timeouts_fit_the_15_second_budget():
+    # Gemini's free tier sometimes needs 5-10 s; Gmail kills the add-on at ~30 s; budget is 15 s.
+    assert pipeline.HTTP_TIMEOUT_SECONDS == 10.0
+    assert pipeline.OPTIONAL_TIMEOUT_SECONDS == 12.0
+    assert pipeline.HTTP_TIMEOUT_SECONDS <= pipeline.OPTIONAL_TIMEOUT_SECONDS <= 15.0
+
+
 def test_unconfigured_analyzers_are_skipped():
     result = run(make_settings())
     assert result.coverage["virustotal"].status == "skipped"
