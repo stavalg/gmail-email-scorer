@@ -23,9 +23,24 @@ function callBackend(payload) {
   const code = response.getResponseCode();
   if (code === 401 || code === 403) throw new AddonError('unauthorized');
   if (code !== 200) throw new AddonError('backend');
+  let data;
   try {
-    return JSON.parse(response.getContentText());
+    data = JSON.parse(response.getContentText());
   } catch (err) {
     throw new AddonError('invalid_response');
   }
+  return validateResult(data);
+}
+
+const VERDICTS = ['safe', 'suspicious', 'malicious'];
+
+/** The backend's answer is checked too: we only display what has the expected shape. */
+function validateResult(data) {
+  const ok = data !== null && typeof data === 'object'
+    && VERDICTS.includes(data.verdict)
+    && Number.isInteger(data.score) && data.score >= 0 && data.score <= 100
+    && ['findings', 'advice', 'facts', 'notices'].every((key) => Array.isArray(data[key]))
+    && data.coverage !== null && typeof data.coverage === 'object';
+  if (!ok) throw new AddonError('invalid_response');
+  return data;
 }
