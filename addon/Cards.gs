@@ -65,24 +65,27 @@ function buildResultCard(result) {
   return card.build();
 }
 
-/**
- * A colored 0–100 gauge drawn with text (cards can't draw graphics): a line of 20 segments,
- * green below 30, orange 30–69, red from 70, labelled 0 / 30 / 70 / 100, with a ● at the score.
- */
-function scoreBar(score) {
-  const marker = Math.min(19, Math.floor(score / 5));
-  const label = (text) => '<font color="#9aa0a6">' + text + '</font>';
-  let html = label('0 ');
+const ZONE_COLORS = {
+  safe: { strong: '#188038', pale: '#ceead6' },
+  suspicious: { strong: '#e37400', pale: '#fde2c4' },
+  malicious: { strong: '#d93025', pale: '#fad2cf' },
+};
+
+/** Color of each of the 20 cells (5 points each): strong up to the score, pale after it. */
+function scoreBarCells(score) {
+  const filled = Math.round(score / 5);
+  const cells = [];
   for (let cell = 0; cell < 20; cell++) {
-    const cellScore = cell * 5;
-    if (cellScore === 30 || cellScore === 70) html += label(' ' + cellScore + ' ');
-    const color = cellScore >= 70 ? VERDICT_STYLES.malicious.color
-      : cellScore >= 30 ? VERDICT_STYLES.suspicious.color : VERDICT_STYLES.safe.color;
-    html += cell === marker
-      ? '<font color="#202124"><b>●</b></font>'
-      : '<font color="' + color + '">━</font>';
+    const zone = cell * 5 >= 70 ? 'malicious' : cell * 5 >= 30 ? 'suspicious' : 'safe';
+    cells.push(cell < filled ? ZONE_COLORS[zone].strong : ZONE_COLORS[zone].pale);
   }
-  return html + label(' 100');
+  return cells;
+}
+
+/** One unbroken progress bar drawn with text (cards can't draw graphics): 0 ████ 100. */
+function scoreBar(score) {
+  const bar = scoreBarCells(score).map((color) => '<font color="' + color + '">█</font>').join('');
+  return '<font color="#9aa0a6">0 </font>' + bar + '<font color="#9aa0a6"> 100</font>';
 }
 
 function buildErrorCard(kind) {
