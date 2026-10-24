@@ -41,12 +41,79 @@ function extractEmail(message) {
 
   const payload = {
     headers_raw: cut(headers, LIMITS.HEADERS_CHARS),
-    body_html: cut(message.getBody(), LIMITS.HTML_CHARS),
-    body_text: cut(message.getPlainBody(), LIMITS.TEXT_CHARS),
+    body_html: cut(redactSecrets(message.getBody()), LIMITS.HTML_CHARS),
+    body_text: cut(redactSecrets(message.getPlainBody()), LIMITS.TEXT_CHARS),
     attachments: all.slice(0, LIMITS.ATTACHMENTS).map(describeAttachment),
   };
   payload.truncated = truncated;
   return payload;
+}
+
+// Redaction: secrets meant for the reader (reset tokens, one-time codes, passwords) are removed
+// here, so the backend never sees them. Everything the rules read stays: link schemes and hosts,
+// redirect targets, and words like "password".
+const URL_IN_TEXT = /https?:\/\/[^\s<>"')\]]+/gi;  // the same pattern the backend uses
+const SENSITIVE_PARAM = /token|code|key|pass|pwd|secret|sig|auth|session|sid|otp|ticket|nonce|hash/i;
+const LOGIN_TOKEN = /^eyJ[\w-]+\.[\w-]+\.[\w-]*$/;  // the three-part shape of a JWT
+const DOMAIN = /^([a-z0-9-]+\.)+[a-z]{2,}$/i;
+const PASSWORD_VALUE = /\b(password|passcode|pin|pwd)(\s*:\s*|\s+is:?\s+)((?:<[^>]*>\s*)*)([^\s<]+)/gi;
+const ONE_TIME_CODE = /\b(code|otp|passcode|one-time|verification)\b((?:[^\d<]|<[^>]*>){0,30}?)(\d{4,8})\b/gi;
+
+/** Removes secrets from email text or HTML before it leaves Gmail. */
+function redactSecrets(text) {
+  return (text || '')
+    .replace(URL_IN_TEXT, (match) => {
+      const trail = match.match(/[.,;:!?]*$/)[0];  // sentence punctuation is not part of the link
+      return redactUrl(match.slice(0, match.length - trail.length)) + trail;
+    })
+    .replace(PASSWORD_VALUE, (match, word, separator, tags, value) => {
+      // "password: x" always hides x; "password is x" only when x looks like one, not "is correct".
+      const hide = separator.includes(':') || /[^a-z]/i.test(value);
+      return hide ? word + separator + tags + '[hidden]' : match;
+    })
+    .replace(ONE_TIME_CODE, (match, word, gap) => word + gap + '[code]');
+}
+
+/** One link with its secrets removed: random path pieces, sensitive parameters, everything after #. */
+function redactUrl(url) {
+  const noFragment = url.split('#')[0];
+  const queryStart = noFragment.indexOf('?');
+  const base = queryStart === -1 ? noFragment : noFragment.slice(0, queryStart);
+  const pathStart = base.indexOf('/', base.indexOf('//') + 2);
+  const host = pathStart === -1 ? base : base.slice(0, pathStart);
+  const path = pathStart === -1 ? '' : base.slice(pathStart)
+    .split('/').map((piece) => (looksRandom(piece, 20) ? 'REDACTED' : piece)).join('/');
+  if (queryStart === -1) return host + path;
+  const query = noFragment.slice(queryStart + 1)
+    .split(/(&amp;|&)/)  // keeps the separators; HTML writes & as &amp;
+    .map((part, i) => (i % 2 ? part : redactParam(part)))
+    .join('');
+  return host + path + '?' + query;
+}
+
+/** One "name=value" parameter, its value hidden when the name or the value looks secret. */
+function redactParam(part) {
+  const eq = part.indexOf('=');
+  const name = eq === -1 ? '' : part.slice(0, eq);
+  const value = eq === -1 ? part : part.slice(eq + 1);
+  const prefix = eq === -1 ? '' : name + '=';
+  if (!value) return part;
+  if (SENSITIVE_PARAM.test(name)) return prefix + 'REDACTED';
+  let decoded = value;
+  try { decoded = decodeURIComponent(value); } catch (e) { /* not encoded: use as is */ }
+  if (/^https?:\/\//i.test(decoded)) {
+    // A redirect target keeps its domain for future checks, cleaned like any other link.
+    const cleaned = redactUrl(decoded);
+    return prefix + (decoded === value ? cleaned : encodeURIComponent(cleaned));
+  }
+  if (LOGIN_TOKEN.test(decoded)) return prefix + 'REDACTED';
+  if (DOMAIN.test(decoded)) return part;
+  return prefix + (looksRandom(value, 16) ? 'REDACTED' : value);
+}
+
+/** True for long letter-and-digit soup, the usual shape of a token. */
+function looksRandom(value, minLength) {
+  return value.length >= minLength && /^[\w\-.~%+=]+$/.test(value) && /[a-z]/i.test(value) && /\d/.test(value);
 }
 
 /** Name, type, size and SHA-256 fingerprint of one attachment (files over 10 MB are not hashed). */

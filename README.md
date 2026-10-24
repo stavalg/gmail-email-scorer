@@ -57,7 +57,8 @@ verdict (**Safe / Suspicious / Malicious**) and the evidence behind it — every
 
 1. The user opens an email. The side panel offers **Analyze this email** — and says
    *"Nothing is sent until you click Analyze"*. Analysis is **on demand only**.
-2. The add-on sends the minimum the backend needs (headers, body, attachment *metadata and
+2. The add-on removes secrets meant for the reader (reset tokens, one-time codes, passwords),
+   then sends the minimum the backend needs (headers, body, attachment *metadata and
    fingerprints*) with a Google-signed identity token.
 3. The backend analyzes it and returns a score, a verdict and the evidence.
 4. The card shows, top to bottom:
@@ -110,7 +111,7 @@ fail without the scorer changing.
 ```
 addon/                     Gmail add-on (Apps Script)
   Code.gs                  entry points: homepage, email opened, Analyze button
-  Extract.gs               collects headers, body, attachment metadata + SHA-256
+  Extract.gs               collects headers, body, attachment metadata + SHA-256; redacts secrets
   Api.gs                   calls the backend with the identity token, validates the answer
   Cards.gs                 builds the cards; escapes every displayed string
 backend/app/
@@ -245,6 +246,20 @@ email address. No mailbox-wide read, no modify permissions.
 - **Logs contain no email data:** only verdict, score, duration and which checks ran. The HTTP
   client's request-URL logging is switched off so looked-up domains can't reach logs
   (regression-tested).
+- **Secrets are removed before anything leaves Gmail.** The add-on redacts what is meant only
+  for the reader, so neither our backend nor the AI ever sees it:
+  - **Links:** a parameter with a sensitive name (`token`, `code`, `key`, `sig`, `session`, …)
+    or a random-looking value (16+ characters of letters and digits, or a login-token shape)
+    becomes `REDACTED`; so do long random path pieces (`/reset/8f3k…`); everything after `#` is
+    dropped. The scheme, host and harmless parameters stay, and a parameter that is itself a web
+    address (`?url=https://evil.xyz/…`) keeps its domain, so redirect tricks stay detectable.
+  - **Text:** `password: hunter2` → `password: [hidden]` (also *passcode*, *PIN*, and
+    *"password is X7!q"*), and a 4–8 digit code after *code / OTP / verification* → `[code]`.
+  - The words the rules look for ("verify your password") stay, so detection is unchanged:
+    the sample emails get the same score and reasons with and without redaction.
+  - **It is pattern-based, so it is partial.** It removes known secret formats, not every private
+    detail ("my PIN is the year we met", medical or financial details in prose). The backend still
+    sees the rest of the email's text and HTML.
 - **Data minimization to third parties:** VirusTotal receives **registrable domains and file
   hashes only** — never full links (they can contain private tokens, like password-reset links)
   and never files. The AI receives the subject and at most 4,000 characters of text.
@@ -382,7 +397,11 @@ control characters, mixed scripts, malformed headers): all handled without an er
   registration would not be flagged by those rules.
 - **Forwarded mail** is judged by the forwarder, not the original sender.
 - **The backend sees email content** — the cost of keeping logic testable and keys server-side.
-  Mitigated by being stateless, on-demand, and logging no content.
+  Mitigated by redacting known secret formats in the add-on, and by being stateless, on-demand,
+  and logging no content.
+- **Redaction misses some secrets:** a code split across HTML tags (`<b>48</b>2913`), a token made
+  of letters only, or a secret in an unusual phrasing passes through. It also hides some harmless
+  values (long tracking IDs), which no rule reads.
 - **The card can reset** when Gmail redraws the side panel; the user clicks Analyze again
   (results are not cached, by design, to keep the backend stateless).
 - **VirusTotal free tier:** 4 lookups/minute, so at most 3 items per email.
@@ -404,6 +423,10 @@ control characters, mixed scripts, malformed headers): all handled without an er
 - **Shared reports across users** — if other users already reported the same sender, link or
   attachment as phishing, raise the score for everyone who receives it. Needs a shared database
   and protection against fake reports. Left out to keep the backend stateless.
+- **Send links instead of raw HTML.** The backend uses the HTML only for the links and the
+  text shown on each link. The add-on could extract those itself and send just the (redacted)
+  link list plus the plain text. That removes most of the remaining exposure, including secrets
+  that HTML formatting hides from redaction. It moves link extraction from Python into Apps Script.
 - **Short-lived result cache** so the card survives panel redraws.
 - More languages, a larger brand list, and attachment content scanning in an isolated sandbox.
 
@@ -418,6 +441,8 @@ control characters, mixed scripts, malformed headers): all handled without an er
 | Score composition | ML model · weighted rules + optional intel | **Weighted rules + layers** | Every point is explainable; layers degrade gracefully |
 | Confirmed threats (VirusTotal) | extra points + a score floor of 90 · a separate confirmed tier | **Confirmed tier: score 100, no points** | A confirmation is a fact, not a clue; no arbitrary numbers, and new authoritative sources plug in without changing the scorer |
 | Positive signals | subtract points · facts only | **Facts only** | Attackers control what "looks good"; it must never lower risk |
+| Where secrets are redacted | in the backend · in the add-on | **Add-on** | Data that never leaves Gmail can't leak from our server, its logs or the AI; it protects the user from us, so it belongs on the user's side |
+| Which link parameters to hide | all of them · sensitive-looking ones | **Sensitive-looking ones** | Keeps redirect targets readable for future redirect checks while removing tokens |
 | Showing URLs | as links · as text · defanged | **Defanged** | Analyst convention; the card can never become a phishing link |
 | VirusTotal input | full URLs · domains + hashes | **Domains + hashes** | Full URLs can contain private tokens |
 | AI influence | decide verdict · bounded contribution | **≤ +25, add-only** | A successful prompt injection still can't produce "Safe" |
