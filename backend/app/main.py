@@ -12,6 +12,9 @@ from app.models import MAX_REQUEST_BYTES, AnalyzeRequest, AnalyzeResponse
 from app.pipeline import analyze_email
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+# The HTTP client logs full request URLs at INFO; those contain email-derived domains.
+for _noisy in ("httpx", "httpcore"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 logger = logging.getLogger("email_scorer")
 
 # API docs pages are disabled: there is no reason to publish our API surface.
