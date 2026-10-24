@@ -17,6 +17,16 @@ verdict (**Safe / Suspicious / Malicious**) and the evidence behind it — every
   </tr>
 </table>
 
+> **Trying it yourself.** The deployed add-on works only for my own Gmail account, on purpose.
+> The Google sign-in screen is in Testing mode, and the backend accepts only addresses on its
+> allowlist (see [Who may call the backend](#who-may-call-the-backend)). Anyone else gets a
+> *"You're not authorized"* card, which is the expected result. To see it working:
+> - **No Google setup needed:** run the backend locally and send it the sample emails
+>   ([Run the backend locally](#run-the-backend-locally)). It takes about 2 minutes and shows the full scoring.
+> - **The full Gmail experience:** deploy your own copy with your own address on the allowlist
+>   ([Setup and deployment](#7-setup-and-deployment)).
+> - **Or ask me** to add your Gmail address and I'll enable it.
+
 | | |
 |---|---|
 | **Add-on** | Google Apps Script + CardService (Gmail side panel) |
@@ -381,7 +391,8 @@ control characters, mixed scripts, malformed headers): all handled without an er
   A paid tier would make this reliable.
 - **AI models are retired over time.** The model is one setting (`GEMINI_MODEL`, default
   `gemini-3.1-flash-lite`), so replacing a retired model needs no code change.
-- **Single-user allowlist;** not packaged for the Google Workspace Marketplace.
+- **Single-user allowlist;** not packaged for the Google Workspace Marketplace
+  (see *Trying it yourself* at the top).
 
 ## 10. Future work
 
