@@ -64,6 +64,18 @@ def test_dev_skip_auth_works_locally(set_env):
     assert post().status_code == 200
 
 
+def test_token_check_tolerates_small_clock_differences(monkeypatch):
+    # A token minted a second "in the future" by Google's clock must not fail at random.
+    seen = {}
+
+    def fake_verify(token, request, audience=None, clock_skew_in_seconds=0):
+        seen["skew"] = clock_skew_in_seconds
+        return GOOD_CLAIMS
+    monkeypatch.setattr(auth.id_token, "verify_oauth2_token", fake_verify)
+    assert post({"Authorization": "Bearer any"}).status_code == 200
+    assert seen["skew"] == 10
+
+
 def test_api_keys_are_stripped_of_pasted_whitespace(set_env):
     # Secrets created from a terminal often end with a newline, which breaks HTTP headers.
     set_env(VIRUSTOTAL_API_KEY="abc123\r\n", GEMINI_API_KEY="  xyz\n")

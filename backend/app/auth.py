@@ -16,7 +16,9 @@ _google_request = google_requests.Request()
 
 def verify_google_token(token: str, audience: str) -> dict:
     """Returns the token's claims. Raises ValueError if the token is invalid."""
-    return id_token.verify_oauth2_token(token, _google_request, audience=audience)
+    # 10 s tolerance: a token Google just minted can look "issued in the future" to our clock.
+    return id_token.verify_oauth2_token(token, _google_request, audience=audience,
+                                        clock_skew_in_seconds=10)
 
 
 def require_user(authorization: str = Header(default="")) -> str:
